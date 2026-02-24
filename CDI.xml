@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="http://openlcb.org/trunk/prototypes/xml/xslt/cdi.xsl"?>
+<cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/4/cdi.xsd">
+    <identification>
+        <manufacturer>Gamble</manufacturer>
+        <model>Roundhouse</model>
+        <hardwareVersion>2.6A</hardwareVersion>
+        <softwareVersion>2.1</softwareVersion>
+    </identification>
+    <acdi/>
+    <segment origin="0" space="253">
+        <name>Node</name>
+        <group>
+            <name>Node ID</name>
+            <description>User-provided description of the node</description>
+            <string size="62">
+                <name>Node Name</name>
+            </string>
+            <string size="63">
+                <name>Node Description</name>
+            </string>
+        </group>
+    </segment>
+    <segment origin="125" space="253">
+        <name>Reset Control</name>
+        <description>Controls Actions at Next Board Reset. Reloading User or Factory Defaults</description>
+        <int size="1">
+            <name>Flag</name>
+            <default>238</default>
+            <map>
+                <relation>
+                    <property>238</property>
+                    <value>Normal Operation</value>
+                </relation>
+                <relation>
+                    <property>51</property>
+                    <value>Clear Everything but Create New Unused EventIDs</value>
+                </relation>
+                <relation>
+                    <property>255</property>
+                    <value>Clear Everything back to Factory Defaults</value>
+                </relation>
+            </map>
+        </int>
+    </segment>
+    <segment origin="126" space="253">
+        <name>Parameters</name>
+        <description>Setup for Turntable control.</description> 
+        <group>
+            <name>Track</name>
+            <description>Parameters for turntable trackage</description>
+            <int size='1'>
+                <name>Track Count</name>
+                <description>Nunmber of tracks to the turntable</description>
+                <min>1</min><max>20</max>
+                <default>14</default>
+            </int>
+            <int size='1'>
+                <name>Home Track</name>
+                <description>Track to go to after homing</description>
+                <min>1</min><max>20</max>
+                <default>3</default>
+            </int>
+            <int size='1'>
+                <name>Enable Reference Correction</name>
+                <default>0</default>
+                <map>
+                <relation><property>0</property><value>Disabled</value></relation>
+                <relation><property>1</property><value>Enabled</value></relation>
+                </map>
+            </int>
+            <eventid><name>Rehome</name></eventid>
+            <eventid><name>Increment Track</name></eventid>
+            <eventid><name>Decrement Track</name></eventid>
+            <eventid><name>Rotate Track 180 degrees</name></eventid>
+            <eventid><name>Toggle Bridge Lights</name></eventid>
+            <group replication='20'> 
+            <name>Tracks</name>
+            <repname>T:0</repname>
+            <string size='25'><name>Description</name></string>
+            <string size='5'><name>Short Name</name></string>
+            <eventid><name>Align Front</name></eventid>
+            <eventid><name>Align Back</name></eventid>
+            <int size='4'>
+                <name>Stepper Position in Steps</name>
+                <min>0</min><max>96000</max><default>10</default>
+            </int>
+            </group>
+        </group>
+        <group>
+            <name>Doors</name>
+            <description>Parameters for Door control</description> 
+                <int size='1'>
+                    <name>Active Doors</name><description>Number of active doors</description>
+                    <min>0</min><max>16</max><default>10</default>
+                </int>
+            <eventid><name>Open All Doors</name></eventid>
+            <eventid><name>Close All Doors</name></eventid>
+            <group replication='16'> 
+            <name>Door</name>
+            <repname>D:1</repname>
+            <string size='16'><name>Description</name></string>
+            <string size='5'><name>Short Name</name></string>   
+            <eventid><name>Toggle Door</name></eventid>
+            <int size='1'>
+                <name>Track Number</name>
+                <description>The track number associated with the door</description>
+                <min>0</min><max>20</max>
+                <default>0</default>
+            </int>
+            </group>
+        </group>
+        <group>
+            <name>Lights</name>
+            <description>Parameters for Light control</description>
+            <eventid><name>Toggle Bridge Lights</name></eventid>
+            <eventid><name>Toggle Interior Lights</name></eventid>
+            <eventid><name>Toggle Exterior Lights</name></eventid>
+            <int size='1'>
+            <name>Maximum Luminosity</name>
+                <description>Full luminesence factor</description>
+                <min>10</min><max>255</max><default>150</default>
+            <hints><slider tickSpacing='60' immediate='no' showValue='yes'></slider></hints>
+            </int>
+            <eventid><name>Full Luminosity On</name></eventid>
+            <int size='1'>
+            <name>Minimum Luminosity</name>
+                <description>Dimmed luminesence factor</description>
+                <min>10</min><max>255</max><default>50</default>
+            <hints><slider tickSpacing='60' immediate='no' showValue='yes'></slider></hints>
+            </int>
+            <eventid><name>Low Luminosity On</name></eventid>
+        </group>
+    </segment>
+</cdi>
