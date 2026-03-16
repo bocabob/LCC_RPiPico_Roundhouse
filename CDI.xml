@@ -44,78 +44,45 @@
         </int>
     </segment>
     <segment origin="126" space="253">
-        <name>Parameters</name>
-        <description>Setup for Turntable control.</description> 
-        <group>
-            <name>Track</name>
-            <description>Parameters for turntable trackage</description>
-            <int size='1'>
-                <name>Track Count</name>
-                <description>Nunmber of tracks to the turntable</description>
-                <min>1</min><max>20</max>
-                <default>14</default>
-            </int>
-            <int size='1'>
-                <name>Home Track</name>
-                <description>Track to go to after homing</description>
-                <min>1</min><max>20</max>
-                <default>3</default>
-            </int>
-            <int size='1'>
-                <name>Enable Reference Correction</name>
-                <default>0</default>
-                <map>
-                <relation><property>0</property><value>Disabled</value></relation>
-                <relation><property>1</property><value>Enabled</value></relation>
-                </map>
-            </int>
-            <eventid><name>Rehome</name></eventid>
-            <eventid><name>Increment Track</name></eventid>
-            <eventid><name>Decrement Track</name></eventid>
-            <eventid><name>Rotate Track 180 degrees</name></eventid>
-            <eventid><name>Toggle Bridge Lights</name></eventid>
-            <group replication='20'> 
-            <name>Tracks</name>
-            <repname>T:0</repname>
-            <string size='25'><name>Description</name></string>
-            <string size='5'><name>Short Name</name></string>
-            <eventid><name>Align Front</name></eventid>
-            <eventid><name>Align Back</name></eventid>
-            <int size='4'>
-                <name>Stepper Position in Steps</name>
-                <min>0</min><max>96000</max><default>10</default>
-            </int>
-            </group>
-        </group>
-        <group>
-            <name>Doors</name>
-            <description>Parameters for Door control</description> 
-                <int size='1'>
-                    <name>Active Doors</name><description>Number of active doors</description>
-                    <min>0</min><max>16</max><default>10</default>
-                </int>
-            <eventid><name>Open All Doors</name></eventid>
-            <eventid><name>Close All Doors</name></eventid>
-            <group replication='16'> 
-            <name>Door</name>
+        <description>Setup for Roundhouse control.</description>  
+        <int size='1'>
+            <name>Active Doors</name><description>Number of active doors</description>
+            <min>0</min><max>16</max><default>10</default>
+        </int>
+        <int size='1'>
+        <name>Door Speed</name>
+            <description>Angular Velocity</description>
+            <min>10</min><max>255</max><default>20</default>
+            <hints><slider tickSpacing='60' immediate='no' showValue='yes'></slider></hints>
+        </int>
+        <eventid><name>Open All Doors (C)</name></eventid>
+        <eventid><name>Close All Doors (C)</name></eventid>
+        <group replication='16'> 
+            <name>Bay</name>
             <repname>D:1</repname>
             <string size='16'><name>Description</name></string>
             <string size='5'><name>Short Name</name></string>   
-            <eventid><name>Toggle Door</name></eventid>
+            <eventid><name>Toggle Door (C)</name></eventid>
             <int size='1'>
-                <name>Track Number</name>
-                <description>The track number associated with the door</description>
-                <min>0</min><max>20</max>
+                <name>Servo Minimum Angle</name>
+                <description>Angular Position</description>
+                <min>0</min><max>180</max>
                 <default>0</default>
+                <hints><slider tickSpacing='10' immediate='yes'></slider></hints>
             </int>
-            </group>
-        </group>
+            <int size='1'>
+                <name>Servo Maximum Angle</name>
+                <description>Angular Position</description>
+                <min>0</min><max>180</max>
+                <default>180</default>
+                <hints><slider tickSpacing='10' immediate='yes'></slider></hints>
+            </int>
+        </group>        
         <group>
             <name>Lights</name>
             <description>Parameters for Light control</description>
-            <eventid><name>Toggle Bridge Lights</name></eventid>
-            <eventid><name>Toggle Interior Lights</name></eventid>
-            <eventid><name>Toggle Exterior Lights</name></eventid>
+            <eventid><name>Toggle Interior Lights (C)</name></eventid>
+            <eventid><name>Toggle Exterior Lights (C)</name></eventid>
             <int size='1'>
             <name>Maximum Luminosity</name>
                 <description>Full luminesence factor</description>

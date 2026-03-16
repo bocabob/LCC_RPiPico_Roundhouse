@@ -15,69 +15,58 @@ extern bool pixelsOn;
 // extern int LightAddr[NumOfLights] {700, 701};
 
 
-typedef struct
-{
-	int address;
-	long trackFront;
-	long trackBack;
-  bool doorPresent;
-  int servoNumber;
-}
-TrackAddress;
-extern TrackAddress Tracks[MAX_TRACKS];
 
-const char TrackName[MAX_TRACKS][25]=
-{
-	"                     ",
-  "Entry Track 1  ",
-  "Entry Track 2  ",
-  "Entry Track 3  ",
-  "Roundhouse Bay 1 ",
-  "Roundhouse Bay 2 ",
-  "Roundhouse Bay 3 ",
-  "Roundhouse Bay 4 ",
-  "Roundhouse Bay 5 ",
-  "Roundhouse Bay 6 ",
-  "Roundhouse Bay 7 ",
-  "Roundhouse Bay 8 ",
-  "Roundhouse Bay 9 ",
-  "Roundhouse Bay 10",
-  "Machine Shop     ",
-	"                     ",
-	"                     ",
-	"                     ",
-	"                     ",
-	"                     ",
-};
+// const char TrackName[MAX_TRACKS][25]=
+// {
+// 	"                     ",
+//   "Entry Track 1  ",
+//   "Entry Track 2  ",
+//   "Entry Track 3  ",
+//   "Roundhouse Bay 1 ",
+//   "Roundhouse Bay 2 ",
+//   "Roundhouse Bay 3 ",
+//   "Roundhouse Bay 4 ",
+//   "Roundhouse Bay 5 ",
+//   "Roundhouse Bay 6 ",
+//   "Roundhouse Bay 7 ",
+//   "Roundhouse Bay 8 ",
+//   "Roundhouse Bay 9 ",
+//   "Roundhouse Bay 10",
+//   "Machine Shop     ",
+// 	"                     ",
+// 	"                     ",
+// 	"                     ",
+// 	"                     ",
+// 	"                     ",
+// };
 
-const char TrackTag[MAX_TRACKS][5]=
-{
-	" ",
-  "1",
-  "2",
-  "3",
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
-  "10",
-  "Shop",
-	" ",
-	" ",
-	" ",
-	" ",
-	" ",
-};
+// const char TrackTag[MAX_TRACKS][5]=
+// {
+// 	" ",
+//   "1",
+//   "2",
+//   "3",
+//   "1",
+//   "2",
+//   "3",
+//   "4",
+//   "5",
+//   "6",
+//   "7",
+//   "8",
+//   "9",
+//   "10",
+//   "Shop",
+// 	" ",
+// 	" ",
+// 	" ",
+// 	" ",
+// 	" ",
+// };
 
 
 typedef struct
 {
-	int address;
 	bool active;
 	int Status;
 	int ServoMin;
@@ -85,26 +74,25 @@ typedef struct
 	int Position;
 }
 ServoAddress;
-extern ServoAddress Servos[MAX_DOORS];
+// extern ServoAddress Servos[MAX_DOORS];
 
 typedef struct
 {
-	int address;
 	int pin;
 	bool active;
 }
 LightAddress;
-extern LightAddress Lights[NumOfLights];
+// extern LightAddress Lights[NumOfLights];
 
 // Door parameters
-extern uint8_t _DoorCount;    // int8 Number of Doors off turntable tracks
+// extern uint8_t _DoorCount;    // int8 Number of Doors off turntable tracks
 
-typedef struct {
-  char doorName[16];        // description of this Door
-  char doorShort[5];        // short description of this Door
-  uint8_t TrackLocation;    // int8 number of the track where the door is located
-} doors;
-extern doors _Doors[MAX_DOORS];
+// typedef struct {
+//   char doorName[16];        // description of this Door
+//   char doorShort[5];        // short description of this Door
+//   uint8_t TrackLocation;    // int8 number of the track where the door is located
+// } doors;
+// extern doors _Doors[MAX_DOORS];
 
 #include <NeoPixelBus.h>
 

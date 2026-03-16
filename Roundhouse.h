@@ -40,9 +40,9 @@ void LightSwitch(int Light, int dir);
 void ToggleLight(int Light);
 void driveServos();
 void MoveServo(int i, int dir);
-void touchCommand(int boxCode);
+// void touchCommand(int boxCode);
 // LN code
 
-void setTrackDefaults();
+// void setTrackDefaults();
 void setServoDefaults();
 #endif

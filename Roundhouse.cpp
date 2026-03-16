@@ -27,14 +27,7 @@
 // #include "TTcomms.h"
 #include "mdebugging.h"
 // #include "TTvariables.h"
-
-extern void writeNVMdefaults();
-extern void readNVM();
-extern void produceLightIn();
-extern void produceLightEx();
-extern void produceOpenAll();
-extern void produceCloseAll();
-extern void produceDoor(int servo);
+#include "config_mem_helper.h"
 
 // #include <Adafruit_PWMServoDriver.h>
 #include <PCA9685_servo_driver.h>
@@ -53,10 +46,11 @@ uint8_t ledState = 7;                               // Flag for the LED state: 4
 bool ledOutput = LOW;                               // Boolean for the actual state of the output LED pin.
 unsigned long ledMillis = 0;                        // Required for non blocking LED blink rate timing.
 
+extern void DimmerHigh();
+extern void DimmerLow();
 
 // typedef struct
 // {
-// 	int address;
 // 	int pin;
 // 	bool active;
 // }
@@ -66,14 +60,13 @@ LightAddress Lights[NumOfLights];
 // int LightPin[NumOfLights] {Light_A, Light_B};
 // int LightAddr[NumOfLights] {700, 701};
 
-TrackAddress Tracks[MAX_TRACKS];
 
 ServoAddress Servos[MAX_DOORS];
 
 // Adafruit_PWMServoDriver pwm1 = Adafruit_PWMServoDriver(SERVO_ADDRESS); // to manage servos from 1  to 16 (addresses 100-115)
 
 // create the controller and servos
-PCA9685_servo_driver myController(i2c1, SERVO_SDA, SERVO_SCL, SERVO_ADDRESS);
+PCA9685_servo_driver myController(SERVO_I2C, SERVO_SDA, SERVO_SCL, SERVO_ADDRESS);
 // PCA9685_servo  myServo1 = PCA9685_servo(&myController, 0, 100, 540); // define a vector of servos, note this could extend to use multiple controller on the i2c bus
 // std::vector<PCA9685_servo> myServo = {PCA9685_servo(&myController, 0, 100, 540)}; // define a vector of servos, note this could extend to use multiple controller on the i2c bus
 std::vector<PCA9685_servo> myServo = {PCA9685_servo(&myController, 0, myPWMmin, myPWMmax),
@@ -104,79 +97,57 @@ void RoundhouseCallback(uint16_t callin) {
 // Invoked when an event is consumed; 
 // drive actions as needed from index of all events.
 //
-//dPS((const char*)"\npceCallback: Event Index: ", index);
-// dP("\neventid callback: index="); dP((uint16_t)index);
-  if (index < NUM_TABLE_EVENTS){    
-        switch (index) { //
-          case 0:  // CEID(Rehome)
-          touchCommand(4);
+dPS((const char*)"\npceCallback: Event Index: ", index);
+dP("\neventid callback: index="); dP((uint16_t)index);
+   
+    if (index < 2) { // if the event is an ALL door event
+        switch (index) { //, , , , 
+          case 0:  //   OpenAll  
+            for (int i = 0; i <= ConfigMemHelper_config_data.attributes.DoorCount; i++) {            
+              MoveServo(i, 32);            
+              // drawTrack(i,((Tracks[i].trackFront*360)/fullTurnSteps));            
+            }
           break;
-          case 1:  //  CEID(IncrementTrack) 
-          touchCommand(9);
-          break;
-          case 2:  //  CEID(DecrementTrack) 
-          touchCommand(5);
-          break;
-          case 3:  //  CEID(RotateTrack180) 
-          touchCommand(1);
-          break;
-          case 4:  //  CEID(ToggleBridgeLights) 
-          touchCommand(2);
+          case 1:  //  CloseAll
+            for (int i = 0; i <= ConfigMemHelper_config_data.attributes.DoorCount; i++) {
+              MoveServo(i, 0);            
+              // drawTrack(i,((Tracks[i].trackFront*360)/fullTurnSteps));
+            }
           break;
           default:
             // do nothing
           break;
         }
-  }
-  else 
-  if (index < NUM_TABLE_EVENTS + NUM_TRACK_EVENTS){
-    index = index - NUM_TABLE_EVENTS;
-    uint8_t track = index / 2;
-    uint8_t outputState = index % 2;
-    if (outputState) {
-      // move back side to track
-      // move to track backward
-    }
-    else {
-      // move front side to track
-      // move to track foreward
-    }
-      
-      // toggle door to track w/redraw
-      if (Tracks[track].doorPresent) 
-      {
-        // if (Servos[Tracks[track].servoNumber].Status)
-        // {              MoveServo(Tracks[track].servoNumber, 0);            }
-        // else
-        // {              MoveServo(Tracks[track].servoNumber, 32);            }
       }
-  }
-  else {    
-// skip Door events as they are produced, not consumed
-    index = index - NUM_DOOR_EVENTS;
-    if (index < NUM_LUM_EVENTS){
+      else {
+        if (index < 2 + ConfigMemHelper_config_data.attributes.DoorCount) { // if the event is a door event
+        uint8_t servoNum = index - 2; // get the servo number from the event index
+        // toggleDoor(servoNum);
+                if (Servos[servoNum].Status)
+                {              MoveServo(servoNum, 0);            }
+                else
+                {              MoveServo(servoNum, 32);            }
+        }
+        else {
+        index = index - (2 + ConfigMemHelper_config_data.attributes.DoorCount); // adjust the index to account for the door events
         switch (index) { //, , , , 
-          case 0:  //   CEID(eidBridge)
-          touchCommand(2);
+          case 0:  //        
+          ToggleLight(0);
           break;
-          case 1:  //  PEID(eidInterior)
-          // produced
+          case 1:  // 
+          ToggleLight(1);
           break;
           case 2:  //  PEID(eidExterior)
-          // produced
+            DimmerHigh();      // turn dimmer off, go to high luminosity
           break;
-          case 3:  //  CEID(eidHighLuminosity_On)
-          DimmerHigh();      // go to high luminosity
-          break;
-          case 4:  //  CEID(eidLowLuminosity_On)
-          DimmerLow();       // go to low luminosity 
+          case 3:  //  CEID(eidLowLuminosity_On)
+            DimmerLow();       // go to low luminosity 
           break;
           default:
             // do nothing
           break;
-        }
+        }}
       }
-  }
 }
 
 void init_servo(PCA9685_servo& servo, uint8_t mode, int16_t minRange, int16_t maxRange, int16_t position, uint8_t address, uint64_t TConstDur)
@@ -197,6 +168,9 @@ void setupServos(){
 	// pwm1.begin();   
 
   myController.begin(100000);   // create connection to the PCA9685 and initialize it
+
+  myController.setOscillatorFrequency(27000000);
+  myController.setPWMFreq(SERVO_FREQ);  // Analog servos run at ~50 Hz updates
 
   // initialize the servos created
   int i{0};
@@ -222,8 +196,6 @@ void setupServos(){
    * affects the calculations for the PWM update frequency. 
    * Failure to correctly set the int.osc value will cause unexpected PWM results
    */
-  myController.setOscillatorFrequency(27000000);
-  myController.setPWMFreq(SERVO_FREQ);  // Analog servos run at ~50 Hz updates
 	delay(10);
 }
 
@@ -252,75 +224,6 @@ The changes to the Status array will cause this code loop to move the servo as c
   for(auto& servo : myServo){  // loop through the servos calling their loop function so they can do their thing
       servo.loop(TEllapsed);
   }
-	// Drive each servo one at a time
-  int i = 0;
-  for(auto& servo : myServo)
-  {
-		if (Servos[i].active ) 
-		{	
-			servo.setPosition(Servos[i].Position);
-			if (Servos[i].Status) // open door
-			{
-				Servos[i].Position++;
-				if (Servos[i].Position >= Servos[i].ServoMax) // reached end
-				{
-          Servos[i].Position = Servos[i].ServoMax;
-					Servos[i].active = false;
-          writeServo(i);
-   
-          #ifdef TT_DEBUG
-            Serial.print(F("Servo Open: "));
-            Serial.print(i, DEC);
-            Serial.print(',');
-            Serial.print(Servos[i].Status, DEC);
-            Serial.print(',');
-            Serial.println(Servos[i].Position, DEC);			
-          #endif          
-      
-          // LN_STATUS lnStatus = LocoNet.reportSensor(Servos[i].address,1);
-          // reportSensor(&LNbus,Servos[i].address,1);
- 
-          #ifdef TT_DEBUG        
-            Serial.print(F("Tx: Sensor: "));
-            Serial.println(Servos[i].address);
-            // Serial.print(F(" Status: "));
-            // Serial.println(LocoNet.getStatusStr(lnStatus));
-          #endif          
-				}				
-			}
-			else  // close door
-			{
-				Servos[i].Position--;
-				if (Servos[i].Position <= Servos[i].ServoMin) // reached end
-				{
-          Servos[i].Position = Servos[i].ServoMin;
-					Servos[i].active = false;
-          writeServo(i);
-  
-          #ifdef TT_DEBUG
-            Serial.print(F("Servo Closed: "));
-            Serial.print(i, DEC);
-            Serial.print(',');
-            Serial.print(Servos[i].Status, DEC);
-            Serial.print(',');
-            Serial.println(Servos[i].Position, DEC);
-          #endif          
-          
-          // LN_STATUS lnStatus = LocoNet.reportSensor(Servos[i].address,0);
-          // reportSensor(&LNbus,Servos[i].address,0);
-   
-          #ifdef TT_DEBUG       
-            Serial.print(F("Tx: Sensor: "));
-            Serial.println(Servos[i].address);
-            // Serial.print(F(" Status: "));
-            // Serial.println(LocoNet.getStatusStr(lnStatus));
-          #endif          
-				}
-			}      
-		}
-    i++;
-	}
-
 }
 
 void initializeHardware() {   
@@ -328,9 +231,10 @@ void initializeHardware() {
 // int Lights.pin[NumOfLights] {Light_A, Light_B};
 // int LightAddr[NumOfLights] {700, 701};
 Lights[0].pin = Light_A;
-Lights[0].address = 700;
+// Lights[0].address = 700;
 Lights[1].pin = Light_B;
-Lights[1].address = 701;
+// Lights[1].address = 701;
+
 // for (int Light=0;Light<NumOfLights;Light++){  // roundhouse lights, move to neoPixels
 //     pinMode(Lights[Light].pin, OUTPUT);
 // 	  digitalWrite(Lights[Light].pin, LOW); // turn off
@@ -391,486 +295,31 @@ if (Light > (NumOfLights - 1)) return;
 }
 
 void MoveServo(int i, int dir)
-{     if (i > (MAX_DOORS - 1)) return;
-      Serial.print(F("Activating Servo : "));
+{     
+  if (i > (MAX_DOORS - 1)) return;
+  Serial.print(F("Activating Servo : "));
+  Serial.println(i, DEC);
+
+  Servos[i].active = true;
+  Servos[i].Status = dir;
+  // When MoveServo() activates a servo:
+  // Call setPosition(finalTarget) ONCE, then just let loop() run.
+    
+  int16_t target = dir ? Servos[i].ServoMax : Servos[i].ServoMin;
+  myServo[i].setPosition((int8_t)target);
+
+    if (dir)
+    {
+      Serial.print(F("Opening : "));
       Serial.println(i, DEC);
-
-      Servos[i].active = true;
-      Servos[i].Status = dir;
-
-      if (dir)
-      {
-        Serial.print(F("Opening : "));
-        Serial.println(Servos[i].address, DEC);
-      }
-      else
-      {
-        Serial.print(F("Closing : "));
-        Serial.println(Servos[i].address, DEC);
-      }
+    }
+    else
+    {
+      Serial.print(F("Closing : "));
+      Serial.println(i, DEC);
+    }
 }  
 
-
-void touchCommand(int boxCode)
-{ 
-/*
-0 = null spot
- PageBoxes 20        
-1 = bridge
-2 = bridge shack
-3 - 20 = page buttons
-
-variable selection buttons = 2 * variables, add to pageboxes to get track count variable box #define TrackSelBoxes 24    
-Track setting buttons = 7 * tracks, add to TrackSelBoxes to get track box starting point #define TrackBoxes 144      
-Servo selection buttons = 2 * variables, add to TrackBoxes to get servo variable update box #define ServoSelBoxes 146   
-Servo setting buttons = 6 * servos, add to TrackSelBoxes to get track box starting point #define ServoBox 206       
-Turntable track operation buttons = 3 * tracks, add to ServoBox to get track box starting point #define TrackBox 266      
-
- PossibleBoxes  270    // space for array of click box boundaries (static boxes plus track boxes)
-
-*/
-// check for debounce
-// box_started_ms = millis();      
-// if (box_started_ms - box_last_change < box_db_time)     return;     // Debounce time not ellapsed.
-
-// box_changed = false;  // Debounce time has not ellapsed.
-// // box_changed = (box_current_state != box_last_state); // Report state change if current state vary from last state. 
-
-// box_last_state = box_current_state;				// Save last state.
-// box_current_state = boxCode;					// Assign new state as current state . 
-// if (!(box_current_state == box_last_state)) {box_changed = true;};
-// if (box_changed) {           // State changed.
-//   Serial.println(' ');
-//   Serial.print(" box changed   ");  
-//   box_last_change = read_started_ms;        // Save current millis as last change time.
-// }
-
-#ifdef TT_DEBUG
-  // tft.setCursor(300, 270,  2);
-  // tft.print("HotSpot is ");tft.print(HotSpotBox(X_Coord,Y_Coord));tft.print("     ");
-  // tft.setCursor(300, 285,  2);
-  // tft.print("X = ");tft.print(X_Coord);tft.print("   ");
-  // tft.setCursor(300, 300,  2);
-  // tft.print("Y = ");tft.print(Y_Coord);tft.print("   ");
-#endif  
-  if (boxCode <= PageBoxes) { // main screen buttons
-    switch (boxCode) {
-    case 1:      // bridge 
-      // Turn180();
-      break;
-    case 2:      // bridge shack
-      // TogglePixels();
-      // drawShack((absPosition(stepper.currentPosition())*360)/fullTurnSteps);
-      break;
-    case 3:      // find reference positions
-      // initiateReferences();
-      break;
-    case 4:    // Re-home
-      Serial.println(F("Reset Home Position...."));
-      // initiateHoming();
-      break;
-    case 5:      // decrement
-      // DecrementTrack();
-      break;
-    case 6:      // Bump Bar
-      // BumpBar();
-      break;      
-    case 7:      // toggle RH interior lights
-      produceLightIn();
-      // ToggleLight(0);
-      break;
-    case 8:      // toggle RH exterior lights
-      produceLightEx();
-      // ToggleLight(1);
-      break;    
-    case 9:      // button 5
-      // IncrementTrack();
-      break;      
-    case 10:      // open all doors 
-      produceOpenAll();    
-      // for (int i = 0; i <= trackCount; i++) {
-      // if (Tracks[i].doorPresent) 
-      // {
-      //   // MoveServo(Tracks[i].servoNumber, 32);            
-      //   drawTrack(i,((Tracks[i].trackFront*360)/fullTurnSteps));
-      // }
-      // }
-      break;
-    case 11:      // close all doors 
-      produceCloseAll();
-      // for (int i = 0; i <= trackCount; i++) {
-      // if (Tracks[i].doorPresent) 
-      // {
-      //   // MoveServo(Tracks[i].servoNumber, 0);            
-      //   drawTrack(i,((Tracks[i].trackFront*360)/fullTurnSteps));
-      // }
-      // }
-      break;    
-    case 12:      // settings page
-      // drawSettingsPage();
-      break;
-    case 13:      // diagnostics page
-      // drawDiagnosticPage();
-      break;    
-    case 14:      // turn table page
-      // drawHomePage();
-      // drawTracks();
-      break;
-    case 15:      // clear EEPROM
-      // clearEEPROM();
-      // drawDiagnosticPage();
-      break;    
-    case 16:      // read EEPROM
-      {
-      // long savedSteps = readEEPROM();
-      // drawDiagnosticPage();
-      break;
-      }
-    case 17:      // write EEPROM   
-    #ifdef TT_DEBUG
-      Serial.println(F("DEBUG: write EEPROM "));
-      Serial.println(boxCode);
-    #endif   
-      // writeEEPROM();
-      // drawDiagnosticPage();
-      break;    
-    case 18: // settings page
-      // drawConfigPage();
-      break;    
-    case 19:
-      // determine step count - make button?
-      // initiateStepCount();
-      break;
-    case 20:
-      // decrement fullTurnSteps
-      // --fullTurnSteps;
-      // drawSteps();
-      break;    
-    case 21:
-      // increment fullTurnSteps
-      // ++fullTurnSteps;
-      // drawSteps();
-      break;    
-    case 22:
-      // read step count from storage
-      // fullTurnSteps = getSteps();
-      // drawSteps();
-      break;    
-    case 23:
-      // write step count to storage
-      // writeSteps(fullTurnSteps);
-      // drawSteps();
-      break;    
-    case 24:
-      // read references from storage
-      // getReferences();
-      // drawDiagnosticPage();
-      break;    
-    case 25:
-      // write references to storage
-      // writeReferences();
-      // drawConfigPage();
-      break;    
-    case 26:
-      //  load default tracks - updated to CDI data      
-      writeNVMdefaults();
-      readNVM();
-      // setTrackDefaults(); // this updates just to RAM, not CDI
-      // drawDiagnosticPage();
-      break;    
-    case 27:
-      // read tracks from storage
-      // getTracks();
-      // drawDiagnosticPage();
-      break;    
-    case 28:
-      // write tracks to storage
-      // writeTracks();
-      // drawConfigPage();
-      break;    
-    case 29:
-      //  load default servos
-      // setServoDefaults();
-      // drawDiagnosticPage();
-      break;    
-    case 30:
-      // read servos from storage
-      // getServos();
-      // drawDiagnosticPage();
-      break;    
-    case 31:
-      // write servos to storage
-      // writeServos();
-      // drawConfigPage();
-      break;    
-    default:
-      /*
-      
-      */ 
-    #ifdef TT_DEBUG
-      Serial.println(F("DEBUG: default switch case "));
-      Serial.println(boxCode);
-    #endif   
-      break;
-    }    
-  } 
-  else  // process a track variable box  
-  {
-    if (boxCode <= TrackSelBoxes) {
-      int action = (boxCode-PageBoxes-1);
-      switch (action){
-      case 0:
-        // decrement track count
-        // if (trackCount > 0){
-        //    --trackCount;
-        //    writeCount();
-        // }
-        break;
-      case 1:
-        // increment track count
-        // if (trackCount < NUM_TRACKS) {
-        //    ++trackCount;
-        //    writeCount();
-        // }
-        break;
-      case 2:
-        // decrement track edit selection
-        // if (refCount > 0) --refCount;
-        break;
-      case 3:
-        // increment track edit selection
-        // if (refCount < NumberOfReferences) ++refCount;
-        break;
-      case 4:
-        // decrement track edit selection
-        // if (editTrack > 0) --editTrack;
-        break;
-      case 5:
-        // increment track edit selection
-        // if (editTrack < trackCount) ++editTrack;
-        break;
-      default:
-        // statements
-        break;
-      }   
-      // drawSetting(editTrack);
-    }
-    else  // process a track box
-    {
-      if (boxCode < TrackBoxes) {
-        int action = (boxCode-TrackSelBoxes-1) % 7;
-        switch (action){
-        case 0:
-          // decrement address
-          // if (Tracks[editTrack].address > 0) --Tracks[editTrack].address ;
-          break;
-        case 1:
-          // increment address
-          // if (Tracks[editTrack].address < MaxDCCaddress) ++Tracks[editTrack].address;
-          break;
-        case 2:
-          // decrement step position
-          // if (Tracks[editTrack].trackFront > 0) {
-          //   --Tracks[editTrack].trackFront;
-          //   --Tracks[editTrack].trackBack;
-          // }
-          break;
-        case 3:
-          // increment step position
-          // if (Tracks[editTrack].trackFront < fullTurnSteps) {
-          //   ++Tracks[editTrack].trackFront;
-          //   ++Tracks[editTrack].trackBack;
-          // }
-          break;
-        case 4:
-          // toggle door presence to track w/redraw
-          // if (Tracks[editTrack].doorPresent)
-          // {Tracks[editTrack].doorPresent = false;}
-          // else
-          // {Tracks[editTrack].doorPresent = true;}
-          break;
-        case 5:
-          // decrement servo number
-          // if (Tracks[editTrack].servoNumber > 0) --Tracks[editTrack].servoNumber ;
-          break;
-        case 6:
-          // increment servo number
-          // if (Tracks[editTrack].servoNumber < MAX_DOORS) ++Tracks[editTrack].servoNumber;
-          break;
-        default:
-          // statements
-          break;
-        }
-        // drawSetting(editTrack);
-      }
-      else  // process a servo variable box  
-      {
-        if (boxCode <= ServoSelBoxes) {
-          int action = (boxCode-TrackBoxes-1);
-          switch (action){
-          case 0:
-            // decrement track count
-            // if (editServo > 0) --editServo;
-            break;
-          case 1:
-            // increment track count
-            // if (editServo < MAX_DOORS) ++editServo;
-            break;
-          default:
-            // statements
-            break;
-          }      
-          // drawServo(editServo);
-        }
-        else {  // buttons on servo settings page ServoSelBoxes
-          if (boxCode < TrackBox) {
-            int action = (boxCode-ServoSelBoxes-1) % 6;
-            switch (action){
-          case 0:
-            // decrement address
-            // if (Servos[editServo].address > 0) --Servos[editServo].address ;
-            break;
-          case 1:
-            // increment address
-            // if (Servos[editServo].address < MaxDCCaddress) ++Servos[editServo].address;
-            break;
-          case 2:
-            // decrement servo minimum range
-            // if (Servos[editServo].ServoMin > MinServoRange) --Servos[editServo].ServoMin ;
-            break;
-          case 3:
-            // increment servo minimum range
-            // if (Servos[editServo].ServoMin < MaxServoRange) ++Servos[editServo].ServoMin;
-            break;
-          case 4:
-            // decrement servo minimum range
-            // if (Servos[editServo].ServoMax > MinServoRange) --Servos[editServo].ServoMax ;
-            break;
-          case 5:
-            // increment servo minimum range
-            // if (Servos[editServo].ServoMax < MaxServoRange) ++Servos[editServo].ServoMax;
-            break;
-            default:
-              // statements
-              break;
-            }
-            // drawServo(editServo);
-          }
-          else { // track buttons from the turntable diagram
-            int track = (boxCode - TrackBox)/3;
-            int action = (boxCode-TrackBox) % 3;
-            switch (action){
-            case 0:
-              // move front side to track
-              // move to track foreward
-              // MoveToTrack(track,32);
-              break;
-            case 1:
-              // move back side to track
-              // move to track backward
-              // MoveToTrack(track,0);
-              break;
-            case 2:
-              // toggle door to track w/redraw
-              if (Tracks[track].doorPresent) 
-              {
-                produceDoor(Tracks[track].servoNumber);
-                // if (Servos[Tracks[track].servoNumber].Status)
-                // {              MoveServo(Tracks[track].servoNumber, 0);            }
-                // else
-                // {              MoveServo(Tracks[track].servoNumber, 32);            }
-                // drawTrack(track,((Tracks[track].trackFront*360)/fullTurnSteps));
-              }
-              break;
-            default:
-              // statements
-              break;
-            }
-          }
-        }
-      }
-    }
-  }
-  
-#ifdef TT_DEBUG  
-    // Serial.print(F("Buffer: "));
-    // Serial.println(buff);
-#endif          
-}
-
-void setTrackDefaults()
-{
-  // for (int i = 0; i < (sizeof(Tracks) / sizeof(TrackAddress)); i++) {
-  //     // Tracks[i].address = TrackStartAddress - 1 + i;
-  //     Tracks[i].trackFront = 0;
-  //     // Tracks[i].trackBack = (FULL_TURN_STEPS / 2);
-  //     Tracks[i].doorPresent = false;
-  //     Tracks[i].servoNumber = 0;
-  //   }
-  // for (int i = 4; i < (sizeof(Tracks) / sizeof(TrackAddress)-1); i++) {
-  //     Tracks[i].doorPresent = true;
-  //     // Tracks[i].servoNumber = (i-4) % MAX_DOORS;
-  //   }
-  // trackCount = NUM_TRACKS;
-  
-  // // homeTrack = 3;
-	// // track zero is the position of the homing sensor
-	// // Tracks[1].address = 500; // TrackStartAddress
-	// Tracks[1].trackFront = absPosition(entryTrack1);
-	// Tracks[1].trackBack = absPosition(entryTrack1 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[2].address = 501;
-	// Tracks[2].trackFront = absPosition(entryTrack2);
-	// Tracks[2].trackBack = absPosition(entryTrack2 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[3].address = 502;
-	// Tracks[3].trackFront = absPosition(entryTrack3);
-	// Tracks[3].trackBack = absPosition(entryTrack3 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[4].address = 503;
-	// Tracks[4].trackFront = absPosition(houseTrack1);
-	// Tracks[4].trackBack = absPosition(houseTrack1 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[5].address = 504;
-	// Tracks[5].trackFront = absPosition(houseTrack2);
-	// Tracks[5].trackBack = absPosition(houseTrack2 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[6].address = 505;
-	// Tracks[6].trackFront = absPosition(houseTrack3);
-	// Tracks[6].trackBack = absPosition(houseTrack3 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[7].address = 506;
-	// Tracks[7].trackFront = absPosition(houseTrack4);
-	// Tracks[7].trackBack = absPosition(houseTrack4 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[8].address = 507;
-	// Tracks[8].trackFront = absPosition(houseTrack5);
-	// Tracks[8].trackBack = absPosition(houseTrack5 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[9].address = 508;
-	// Tracks[9].trackFront = absPosition(houseTrack6);
-	// Tracks[9].trackBack = absPosition(houseTrack6 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[10].address = 509;
-	// Tracks[10].trackFront = absPosition(houseTrack7);
-	// Tracks[10].trackBack = absPosition(houseTrack7 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[11].address = 510;
-	// Tracks[11].trackFront = absPosition(houseTrack8);
-	// Tracks[11].trackBack = absPosition(houseTrack8 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[12].address = 511;
-	// Tracks[12].trackFront = absPosition(houseTrack9);
-	// Tracks[12].trackBack = absPosition(houseTrack9 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[13].address = 512;
-	// Tracks[13].trackFront = absPosition(houseTrack10);
-	// Tracks[13].trackBack = absPosition(houseTrack10 + (FULL_TURN_STEPS / 2));
-
-	// // Tracks[14].address = 513;
-	// Tracks[14].trackFront = absPosition(houseTrack11);
-	// Tracks[14].trackBack = absPosition(houseTrack11 + (FULL_TURN_STEPS / 2));
-}
 
 void setServoDefaults()
 // memory for the Status of servo:  
@@ -880,10 +329,10 @@ void setServoDefaults()
 
 {	
   for (int i = 0; i < (sizeof(Servos) / sizeof(ServoAddress)); i++) {
-      Servos[i].address = ServoStartingAddress + i;	// DCC address for this servo
+      // Servos[i].address = ServoStartingAddress + i;	// DCC address for this servo
       Servos[i].active = false; // servo in use flag
       Servos[i].Status = 2; // flag for opening or closing of servo
-      Servos[i].Position = 45; // current position
+      Servos[i].Position = 0; // current position
     }
   
   // these are Status arrays for each servo

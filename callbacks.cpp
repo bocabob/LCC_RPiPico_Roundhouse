@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file dependency_injectors.c
+ * \file callbacks.cpp
  *
  *
  * @author Jim Kueneman
@@ -33,9 +33,9 @@
 
 #include "callbacks.h"
 #include "config_mem_helper.h"
-#include "node_parameters.h"
+#include "openlcb_user_config.h"
 #include "BoardSettings.h"
-#include "src/application_drivers/rpi_pico_drivers.h"
+#include "src/pico/rpi_pico_drivers.h"
 #include "src/openlcb/openlcb_application_broadcast_time.h"
 
 #include "Arduino.h"
@@ -50,7 +50,8 @@
 #include "src/openlcb/openlcb_buffer_store.h"
 #include "src/drivers/canbus/can_buffer_store.h"
 
-extern void PixelCallback(uint16_t callin);
+extern void RoundhouseCallback(uint16_t callin);
+extern config_mem_t ConfigMemHelper_config_data;
 
 static int16_t _100ms_ticks = 0;
 
@@ -141,7 +142,7 @@ void Callbacks_on_consumed_event_identified(openlcb_node_t *openlcb_node, uint16
     
     ConfigMemHelper_config_data.consumer_status[index] = openlcb_node->consumers.list[index].status;
 
-    RoundhouseCallback(index);
+    // RoundhouseCallback(index);
   }
 }
 
@@ -177,6 +178,9 @@ void Callbacks_on_broadcast_time_time_changed(broadcast_clock_t *clock) {
     printf("Current time: %02d:%02d ", clock->state.time.hour, clock->state.time.minute);
     Serial.print(", Rate: ");
     Serial.println(clock->state.rate.rate);
+    if (clock->state.time.valid) {
+        // drawFastClock(clock->state.time.hour, clock->state.time.minute);
+    }
 
     /* ConfigMemHelper_config_data;
       struct {
@@ -190,16 +194,16 @@ void Callbacks_on_broadcast_time_time_changed(broadcast_clock_t *clock) {
         } cntrl_group[6];
       } controls;
     */
-    for (int i = 0; i < 6; i++) {
-      if (ConfigMemHelper_config_data.controls.cntrl_group[i].on_hour*60+ConfigMemHelper_config_data.controls.cntrl_group[i].on_minute != ConfigMemHelper_config_data.controls.cntrl_group[i].off_hour*60+ConfigMemHelper_config_data.controls.cntrl_group[i].off_minute) {  // Check if the group is configured with times to trigger
-        if ((clock->state.time.hour == ConfigMemHelper_config_data.controls.cntrl_group[i].on_hour) && (clock->state.time.minute == ConfigMemHelper_config_data.controls.cntrl_group[i].on_minute)) {
-          PixelCallback(2 + 2*i);  // This is just an example of how to trigger an event on a schedule.  In this case it will trigger the turn_group_on event for the group that matches the current time.  The event index is just an example and should be replaced with the actual index of the event in the configuration.
-        }
-        if ((clock->state.time.hour == ConfigMemHelper_config_data.controls.cntrl_group[i].off_hour) && (clock->state.time.minute == ConfigMemHelper_config_data.controls.cntrl_group[i].off_minute)) {
-          PixelCallback(2 + 2*i + 1);  // This is just an example of how to trigger an event on a schedule.  In this case it will trigger the turn_group_off event for the group that matches the current time.  The event index is just an example and should be replaced with the actual index of the event in the configuration.
-        }
-      }
-    }
+    // for (int i = 0; i < 6; i++) {
+    //   if (ConfigMemHelper_config_data.controls.cntrl_group[i].on_hour*60+ConfigMemHelper_config_data.controls.cntrl_group[i].on_minute != ConfigMemHelper_config_data.controls.cntrl_group[i].off_hour*60+ConfigMemHelper_config_data.controls.cntrl_group[i].off_minute) {  // Check if the group is configured with times to trigger
+    //     if ((clock->state.time.hour == ConfigMemHelper_config_data.controls.cntrl_group[i].on_hour) && (clock->state.time.minute == ConfigMemHelper_config_data.controls.cntrl_group[i].on_minute)) {
+    //       PixelCallback(2 + 2*i);  // This is just an example of how to trigger an event on a schedule.  In this case it will trigger the turn_group_on event for the group that matches the current time.  The event index is just an example and should be replaced with the actual index of the event in the configuration.
+    //     }
+    //     if ((clock->state.time.hour == ConfigMemHelper_config_data.controls.cntrl_group[i].off_hour) && (clock->state.time.minute == ConfigMemHelper_config_data.controls.cntrl_group[i].off_minute)) {
+    //       PixelCallback(2 + 2*i + 1);  // This is just an example of how to trigger an event on a schedule.  In this case it will trigger the turn_group_off event for the group that matches the current time.  The event index is just an example and should be replaced with the actual index of the event in the configuration.
+    //     }
+    //   }
+    // }
   }
 
 }
@@ -277,7 +281,7 @@ void Callbacks_alias_change_callback(uint16_t new_alias, node_id_t node_id) {
 void Callbacks_operations_request_factory_reset(openlcb_statemachine_info_t *statemachine_info, config_mem_operations_request_info_t *config_mem_operations_request_info) {
 
   ConfigMemHelper_clear_config_mem();
-  ConfigMemHelper_reset_and_write_default(NodeParameters_node_id);
+  ConfigMemHelper_reset_and_write_default(OpenLcbUserConfig_node_id);
 
   printf("Factory Reset: NodeID = 0x%06llX\n", OpenLcbUtilities_extract_node_id_from_openlcb_payload(statemachine_info->incoming_msg_info.msg_ptr, 0));
 }
@@ -378,6 +382,6 @@ bool Callbacks_on_login_complete(openlcb_node_t *openlcb_node) {
   
   OpenLcbApplicationBroadcastTime_start(BROADCAST_TIME_ID_DEFAULT_FAST_CLOCK);
 
-  return OpenLcbApplicationBroadcastTime_send_query(NodeParameters_node_id, BROADCAST_TIME_ID_DEFAULT_FAST_CLOCK);
+  return OpenLcbApplicationBroadcastTime_send_query(OpenLcbUserConfig_node_id, BROADCAST_TIME_ID_DEFAULT_FAST_CLOCK);
   
 }

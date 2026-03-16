@@ -11,7 +11,7 @@
 // 
 
 #define TT_DEBUG true  // uncomment for debug
-// #define TT2_DEBUG true  // uncomment for debug
+#define TT2_DEBUG true  // uncomment for debug
 
 /////////////////////////////////////////////////////////////////////////////////////
 //  Define a valid (and free) I2C address, 0x60 is the default.

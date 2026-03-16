@@ -64,15 +64,26 @@
 #define STORAGE_ADDR 0x50  // 0x50 is the default address!
 #define STOR_WIRE Wire1     // make Wire1 or Wire
 
+#define SERVO_SDA  12    // for i2c0
+#define SERVO_SCL  13    // for i2c0
+#define SERVO_I2C i2c0 // (&i2c0_inst) ///< Identifier for I2C HW Block 
+// #define SERVO_SDA  10   // for i2c1
+// #define SERVO_SCL  11   // for i2c1
+// #define SERVO_I2C i2c1 // (&i2c1_inst) ///< Identifier for I2C HW Block 1
+
 #define I2C_SDA  26           // pin to use
 #define I2C_SCL  27           // pin to use
-#define I2C2_SDA  4           // pin to use
-#define I2C2_SCL  5           // pin to use
+// #define I2C2_SDA  10           // pin to use
+// #define I2C2_SCL  11           // pin to use
+
 #define NeoPixel_PinA 2           // pin to use for the board interface
 #define NeoPixel_PinB 6           // pin to use for the board interface
 #define NeoPixel_PinC 7           // pin to use for the board interface
 #define NeoPixel_PinD 3           // pin to use for the board interface
 
+#define NumOfLights 2
+#define Light_A 10
+#define Light_B 11
 
 /////////////////////////////////////////////////////////////////////////////////////
 //  Define the LED blink rates for fast and slow blinking in milliseconds.
@@ -87,6 +98,10 @@
 
 //  Enable debug outputs if required during troubleshooting.
 #define NODE_DEBUG true  // uncomment for debug
+#define NOTICE_PRINT Serial //serial or tft
+
+#define TT_DEBUG true  // uncomment for debug
+#define TT2_DEBUG true  // uncomment for debug
 
 //——————————————————————————————————————————————————————————————————————————————
 //  MCP2517 connections: adapt theses settings to your design
@@ -126,32 +141,37 @@
 #define NUM_SERVOS 10
 #define NUM_POS 2
 
-#define MAX_TRACKS 20
-#define NUM_TRACKS 14
+// Servos
+
+#define myPWMmin 104  // PWMmin	minimal PWM signal for the servo. This is not the minimal pulse width of the servo, but rather the pulse length count. Min and max values usually within (150-600) range.
+#define	myPWMmax 570  // PWMmax	maximal PWM signal for the servo. Just like the PWMmin, to be determined experimentally, by slowly raising the value and checking the motion range. 
+
+#define i_max_servo 10   // modify as desired, you can have 16 for each PCA9685
+#define MinServoRange -90
+#define MaxServoRange 90
+#define SERVO_FREQ 60 // Analog servos run at ~50 Hz updates
+
+#define angleMinimum -35
+#define angleMaximum 90
+#define inversion 1
+
+
+// #define MAX_TRACKS 20
+// #define NUM_TRACKS 14
 #define MAX_DOORS 16
 #define NUM_DOORS 10
 
 #define MAX_STRINGS 1
 #define MAX_LIGHTS 20
+// #define NumOfLights MAX_STRINGS * MAX_LIGHTS
 
-#define NUM_TABLE_EVENTS  5
-#define NUM_TRACK_EVENTS MAX_TRACKS * 2
+// #define NUM_TABLE_EVENTS  5
+// #define NUM_TRACK_EVENTS MAX_TRACKS * 2
 #define NUM_DOOR_EVENTS 2 + MAX_DOORS // 2 All events and a toggle for each servo
 // Light events
 #define NUM_LUM_EVENTS  5
 // #define NUM_LIGHT_EVENTS MAX_STRINGS * MAX_LIGHTS * 9
-#define NUM_EVENT NUM_DOOR_EVENTS + NUM_LUM_EVENTS + NUM_TRACK_EVENTS + NUM_TABLE_EVENTS 
-
-    //  OpenLcb.produce(eventIndex);
-    // Door events -  
-#define IndexOpenAll NUM_TABLE_EVENTS + NUM_TRACK_EVENTS // PEID(OpenAll) OpenLcb.produce(IndexOpenAll);
-#define IndexCloseAll IndexOpenAll + 1 // PEID(CloseAll) OpenLcb.produce(IndexCloseAll);
-#define IndexDoor1 IndexCloseAll + 1 // PEID(doors[s].eidToggle) OpenLcb.produce(IndexDoor1 + i);
-#define IndexLightIn  NUM_TABLE_EVENTS + NUM_TRACK_EVENTS + NUM_DOOR_EVENTS + 1   // Light events  PEID(eidInterior) OpenLcb.produce(IndexLightIn);
-#define IndexLightEx IndexLightIn + 1 // PEID(eidExterior) OpenLcb.produce(IndexLightEx);
-
-
-
+#define NUM_EVENT NUM_DOOR_EVENTS + NUM_LUM_EVENTS //+ NUM_TRACK_EVENTS + NUM_TABLE_EVENTS 
 
 // #include <cstdint>
 
@@ -164,8 +184,16 @@
 
 // NeoPixel defines
 
-#define MAX_STRINGS 4 // also defined in NPlights.cpp and program .ino files and need to update event table
-#define MAX_LIGHTS 20 // also defined in NPlights.cpp and program .ino files
+#define NeoPixel_PIO pio0
+const uint16_t PixelCount = 2; // number of NeoPixels in the string
+const uint8_t PixelPin = NeoPixel_PinA;  // pin for the data line, ignored for Esp8266
+
+#define RedLevel 50   // bridge center
+#define BlueLevel 10  // bridge shack
+#define GreenLevel 0
+
+// #define MAX_STRINGS 4 // also defined in NPlights.cpp and program .ino files and need to update event table
+// #define MAX_LIGHTS 20 // also defined in NPlights.cpp and program .ino files
 
 #define brightnesss 90
 #define MAX_LUMINANCE 100

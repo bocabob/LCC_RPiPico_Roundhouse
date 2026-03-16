@@ -21,15 +21,15 @@
 
 #include <Arduino.h>
 #include <Wire.h>
-#include "TTdrive.h"
+#include "Roundhouse.h"
 #include "TTvariables.h"
-#include "EEPROMFunctions.h"
-#include "version.h"
+// #include "EEPROMFunctions.h"
+// #include "version.h"
 
 
 
 void notice(const char *string);
-void touchIO(int x);
+// void touchIO(int x);
 void TurnOnPixels();
 void TurnOffPixels();
 void TogglePixels();

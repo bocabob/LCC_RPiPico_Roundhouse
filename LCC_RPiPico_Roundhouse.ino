@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2025, Jim Kueneman, Bob Gamble, David Harris, and Alex Shepherd
+ * Copyright (c) 2025, Jim Kueneman, Bob Gamble, David Harris, and others
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,29 +26,26 @@
  *
  * \file BasicNode.ino
  *
- * This sketh will create a very basic OpenLcb Node.  It needs the Config Memory handlers and a reset impementation finished (esp32_drivers.c)
- * Connect the CAN transciever Tx pin to GPIO 21 adn the Rx pin to GPIO 22 on the ESP32 Dev Board.
+ * This sketh will create a very basic OpenLcb Node.  
  *
- * @author Jim Kueneman
- * @date 7 Jan 2025
+ * @author Jim Kueneman, Bob Gamble, David Harris, and others
+ * @date 14 Mar 2025
  */
 
 #include "Arduino.h"
 #include <Wire.h>
 #include <LibPrintf.h>
 
-#define USER_DEFINED_CONSUMER_COUNT 60
-
 #include "BoardSettings.h"
 // #include "TTconfig.h"
 #include "TTvariables.h"
 
 #include "callbacks.h"
-#include "node_parameters.h"
+#include "openlcb_user_config.h"
 #include "config_mem_helper.h"
 
-#include "src/application_drivers/rpi_pico_drivers.h"
-#include "src/application_drivers/rpi_pico_can_drivers.h"
+#include "src/pico/rpi_pico_drivers.h"
+#include "src/pico/rpi_pico_can_drivers.h"
 
 #include "src/drivers/canbus/can_config.h"
 #include "src/openlcb/openlcb_config.h"
@@ -59,7 +56,7 @@
 #include "Roundhouse.h"
 
 // #define NODE_ID 0x050101010777
-#define NODE_ID 0x050101019410      // 05 01 01 01 94 ** range assigned to Bob Gamble / Southern Piedmont
+#define NODE_ID 0x050101019416      // 05 01 01 01 94 ** range assigned to Bob Gamble / Southern Piedmont
 // #define NODE_ADDRESS  5,1,1,1,94,0x08   // 05 01 01 01 94 ** range assigned to Bob Gamble / Southern Piedmont
 
 // MemStruct CDI_RAM;
@@ -81,10 +78,10 @@ static const openlcb_config_t openlcb_config = {
     .config_mem_read                 = &ConfigMemHelper_config_mem_read,
     .config_mem_write                = &ConfigMemHelper_config_mem_write,
     .reboot                          = &RPiPicoDrivers_reboot,
+    .factory_reset                   = &Callbacks_operations_request_factory_reset,
     .freeze                          = &Callbacks_freeze,
     .unfreeze                        = &Callbacks_unfreeze,
     .firmware_write                  = &Callbacks_write_firemware,
-    .factory_reset                   = &Callbacks_operations_request_factory_reset,
     .on_100ms_timer                  = &Callbacks_on_100ms_timer_callback,
     .on_login_complete               = &Callbacks_on_login_complete,
     .on_consumed_event_identified    = &Callbacks_on_consumed_event_identified,
@@ -95,13 +92,19 @@ static const openlcb_config_t openlcb_config = {
 void _check_for_nvm_initialization(void) {
 
   Serial.println("Checking for initialized NVM");
+
+  if (!ConfigMemHelper_nvm_is_accessible()) {
+    Serial.println("FATAL: NVM not accessible - check I2C wiring, address (0x50), and pullups on SDA/SCL");
+    while (true) { delay(1000); }  // halt
+  }
+
   // If the first byte of the configuration memory is 0xFF then the space has never been accessed (fresh firmware load) and need to be initialized to 0x00
   if (ConfigMemHelper_is_config_mem_reset()) {
-   
+
     Serial.println("Initializing Configuration Memory to 0x00");
     ConfigMemHelper_clear_config_mem();
     Serial.println("Writing default values to the Configuration Memory");
-    ConfigMemHelper_reset_and_write_default(NodeParameters_node_id);
+    ConfigMemHelper_reset_and_write_default(OpenLcbUserConfig_node_id);
     Serial.println("Defaults set...");
 
   } else {
@@ -114,31 +117,26 @@ void _check_for_nvm_initialization(void) {
 
 void _register_producers(void) {
 
-  OpenLcbApplication_clear_producer_eventids(NodeParameters_node_id);
+  OpenLcbApplication_clear_producer_eventids(OpenLcbUserConfig_node_id);
 
 }
 
 void _register_consumers(void) {
+int index = 0;
+  OpenLcbApplication_clear_consumer_eventids(OpenLcbUserConfig_node_id);
 
-  OpenLcbApplication_clear_consumer_eventids(NodeParameters_node_id);
+  OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.OpenAll), ConfigMemHelper_config_data.consumer_status[index++]);  // need to read the state from the NVM to know if it is on/off/unknown when registering the consumer event ID
+  OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.CloseAll), ConfigMemHelper_config_data.consumer_status[index++]);
 
-  OpenLcbApplication_register_consumer_eventid(NodeParameters_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.full_luminosity_on), ConfigMemHelper_config_data.consumer_status[0]);  // need to read the state from the NVM to know if it is on/off/unknown when registering the consumer event ID
-  OpenLcbApplication_register_consumer_eventid(NodeParameters_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.low_luminosity_on), ConfigMemHelper_config_data.consumer_status[1]);
-
-  for (int i = 0; i < 6; i++) {
-     OpenLcbApplication_register_consumer_eventid(NodeParameters_node_id, swap_endian64(ConfigMemHelper_config_data.controls.cntrl_group[i].turn_group_on), ConfigMemHelper_config_data.consumer_status[2]);
-     OpenLcbApplication_register_consumer_eventid(NodeParameters_node_id, swap_endian64(ConfigMemHelper_config_data.controls.cntrl_group[i].turn_group_off), ConfigMemHelper_config_data.consumer_status[3]);
+  for (int i = 0; i < ConfigMemHelper_config_data.attributes.DoorCount; i++) {
+     OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].ToggleDoor), ConfigMemHelper_config_data.consumer_status[index++]);  // need to read the state from the NVM to know if it is on/off/unknown when registering the consumer event ID
   }
-
-  for (int i = 0; i < 4; i++) {
-     OpenLcbApplication_register_consumer_eventid(NodeParameters_node_id, swap_endian64(ConfigMemHelper_config_data.strings.string[i].all_on), ConfigMemHelper_config_data.consumer_status[6]);
-     OpenLcbApplication_register_consumer_eventid(NodeParameters_node_id, swap_endian64(ConfigMemHelper_config_data.strings.string[i].all_off), ConfigMemHelper_config_data.consumer_status[7]);
-     OpenLcbApplication_register_consumer_eventid(NodeParameters_node_id, swap_endian64(ConfigMemHelper_config_data.strings.string[i].all_toggle), ConfigMemHelper_config_data.consumer_status[8]);
-     OpenLcbApplication_register_consumer_eventid(NodeParameters_node_id, swap_endian64(ConfigMemHelper_config_data.strings.string[i].effects_on), ConfigMemHelper_config_data.consumer_status[9]);
-     OpenLcbApplication_register_consumer_eventid(NodeParameters_node_id, swap_endian64(ConfigMemHelper_config_data.strings.string[i].effects_off), ConfigMemHelper_config_data.consumer_status[10]);
-     OpenLcbApplication_register_consumer_eventid(NodeParameters_node_id, swap_endian64(ConfigMemHelper_config_data.strings.string[i].effects_toggle), ConfigMemHelper_config_data.consumer_status[11]);
-     OpenLcbApplication_register_consumer_eventid(NodeParameters_node_id, swap_endian64(ConfigMemHelper_config_data.strings.string[i].dimmer_toggle), ConfigMemHelper_config_data.consumer_status[12]);
-  }
+  
+  OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.ToggleInterior), ConfigMemHelper_config_data.consumer_status[index++]);
+  OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.ToggleExterior), ConfigMemHelper_config_data.consumer_status[index++]);
+  OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.HighLuminosity_On), ConfigMemHelper_config_data.consumer_status[index++]);
+  OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.LowLuminosity_On), ConfigMemHelper_config_data.consumer_status[index++]);
+  
   
 }
 
@@ -172,32 +170,34 @@ void setup() {
   RPiPicoDriver_setup();
 
   CanConfig_initialize(&can_config);
-  OpenLcb_initialize(&openlcb_config, OPENLCB_PROFILE_STANDARD | OPENLCB_FEATURE_BROADCAST_TIME | OPENLCB_FEATURE_FIRMWARE_UPGRADE);
+  OpenLcb_initialize(&openlcb_config);
 
   Callbacks_initialize();
 
   Serial.println("Creating Node.....");
 
-  NodeParameters_node_id = OpenLcb_create_node(NODE_ID, &NodeParameters_main_node);
+  OpenLcbUserConfig_node_id = OpenLcb_create_node(NODE_ID, &OpenLcbUserConfig_node_parameters);
   // do this after initialization or the I2C will not be initialized
 
   _check_for_nvm_initialization();
 
   // Read the NVM into the local data structures
   Serial.println("Loading NVM values into Config Mem data variable");
-  ConfigMemHelper_read(NodeParameters_node_id, &ConfigMemHelper_config_data);
+  ConfigMemHelper_read(OpenLcbUserConfig_node_id, &ConfigMemHelper_config_data);
   Serial.println("Data variable loaded and ready for use");
   
   // initStringFlags();
   // SetupPixels();
   // InitialzePixels();  // TODO: JDK THIS CAUSED A HANG ON MY BOARD.... 
 
+  setServoDefaults();
   setupServos();
-
-	notice("Turntable Program Started");
+	// notice("Roundhouse Program Started");
 	
   setupComplete = true;
+
   Serial.println(F("Setup zero complete"));
+
   while(!setup1Complete);
   delay(10);
   // Now use the data found in the data structures to register the current event IDs
@@ -205,7 +205,7 @@ void setup() {
   _register_consumers();
   _register_producers();
 
-  OpenLcbApplicationBroadcastTime_setup_consumer(NodeParameters_node_id, BROADCAST_TIME_ID_DEFAULT_FAST_CLOCK); // initialize the fast clock
+  OpenLcbApplicationBroadcastTime_setup_consumer(OpenLcbUserConfig_node_id, BROADCAST_TIME_ID_DEFAULT_FAST_CLOCK); // initialize the fast clock
 
   node_initiated = true;
 }
@@ -214,7 +214,10 @@ void setup() {
 void setup1() {
   // put your setup code here, to run once:
   // while (!Serial) {}
-  
+  delay(1000);  /* wait */
+  setup1Complete = true;
+  Serial.println(F("Setup one complete"));
+
   while (!node_initiated)
   {
     delay(1000);  /* wait */
@@ -248,7 +251,7 @@ void loop() {
       break;
       case 'i':
         Serial.println("Resetting NVM to default values...");
-        ConfigMemHelper_reset_and_write_default(NodeParameters_node_id);  // reset all EEPROM to CDI defined defaults
+        ConfigMemHelper_reset_and_write_default(OpenLcbUserConfig_node_id);  // reset all EEPROM to CDI defined defaults
         Serial.println("Resetting NVM to default values COMPLETE");
       break;
       case 'r':
@@ -271,7 +274,7 @@ void loop() {
         }
       break;
       case 'q':
-        OpenLcbApplicationBroadcastTime_send_query(NodeParameters_node_id, BROADCAST_TIME_ID_DEFAULT_FAST_CLOCK);
+        OpenLcbApplicationBroadcastTime_send_query(OpenLcbUserConfig_node_id, BROADCAST_TIME_ID_DEFAULT_FAST_CLOCK);
       break;
       case 't':    
         broadcast_clock_state_t* clock = OpenLcbApplicationBroadcastTime_get_clock(BROADCAST_TIME_ID_DEFAULT_FAST_CLOCK);

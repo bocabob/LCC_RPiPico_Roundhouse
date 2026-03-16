@@ -17,7 +17,7 @@
 */
 
 #include "TTcomms.h"
-#include "TTconfig.h"
+#include "BoardSettings.h"
 #include "TTvariables.h"
 #include <NeoPixelConnect.h>
 
@@ -35,9 +35,9 @@ uint32_t _last_change = millis();
 NeoPixelConnect strip(PixelPin, PixelCount, NeoPixel_PIO, 0);
 
 bool pixelsOn = false;
-int activeScreen = 0;
-int editTrack = 0;
-int editServo = 0;
+// int activeScreen = 0;
+// int editTrack = 0;
+// int editServo = 0;
 
 
 void notice(const char *string)
@@ -45,11 +45,6 @@ void notice(const char *string)
   NOTICE_PRINT.println(string);
 }
 
-
-void touchIO(int x)
-{
- touchCommand(x);
-}
 
 
 void TurnOnPixels()   // turn on the pixels

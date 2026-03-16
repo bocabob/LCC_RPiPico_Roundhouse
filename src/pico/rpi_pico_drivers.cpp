@@ -36,12 +36,10 @@
 
 #include "rpi_pico_drivers.h"
 #include "rpi_pico_can_drivers.h"
-#include "../openlcb/openlcb_application_broadcast_time.h"
-#include "../openlcb/protocol_broadcast_time_handler.h"
 
 #include "../../BoardSettings.h"
 
-//#define PRINT_DEBUG_RPI_PICO_DRIVERS
+// #define PRINT_DEBUG_RPI_PICO_DRIVERS
 
 #ifdef ARDUINO_COMPATIBLE
 // TODO:  include any header files the Raspberry Pi Pico need to compile under Arduino/PlatformIO
@@ -56,11 +54,10 @@
 
 #endif  // ARDUINO_COMPATIBLE
 
+#include "../openlcb/openlcb_config.h"
 #include "../openlcb/openlcb_types.h"
 #include "../openlcb/openlcb_defines.h"
 #include "../utilities/mustangpeak_string_helper.h"
-#include "../openlcb/openlcb_node.h"
-#include "../openlcb/protocol_datagram_handler.h"
 
 #include "Wire.h"
 /*
@@ -107,10 +104,8 @@ static bool timer_unhandled_tick = false;
 
 void _handle_timer_tick(void) {
 
-  OpenLcbApplicationBroadcastTime_100ms_time_tick();
+  OpenLcb_100ms_timer_tick();
 
-  OpenLcbNode_100ms_timer_tick();
-  ProtocolDatagramHandler_100ms_timer_tick();
 }
 
 bool timer_task_or_interrupt(__unused struct repeating_timer *timer) {
@@ -255,7 +250,7 @@ uint16_t RPiPicoDrivers_config_mem_read(openlcb_node_t *openlcb_node, uint32_t a
 uint16_t RPiPicoDrivers_config_mem_write(openlcb_node_t *openlcb_node, uint32_t address, uint16_t count, configuration_memory_buffer_t *buffer) {
 
 #ifdef PRINT_DEBUG_RPI_PICO_DRIVERS
-  Serial.print("RPiPicoDrivers_config_mem_read - Writing Address: 0x");
+  Serial.print("RPiPicoDrivers_config_mem_write - Writing Address: 0x");
   Serial.print(address, HEX);
   Serial.print(", Count: 0x");
   Serial.println(count, HEX);
@@ -323,8 +318,9 @@ uint16_t RPiPicoDrivers_config_mem_write(openlcb_node_t *openlcb_node, uint32_t 
 
   #if defined(USE_TILLAART) && defined(EXTERNAL_EEPROM)
   if (bytes_written != 0) {   // S_OK
-    Serial.println("ConfigMemory Write Failed.  Did you define the correct CONFIG_MEM_SIZE in rpi_pico_drivers.h, or correct I2C pins"); 
-    return 0;     
+    Serial.print(bytes_written, HEX);
+    Serial.println("  ConfigMemory Write Failed.  Did you define the correct CONFIG_MEM_SIZE in rpi_pico_drivers.h, or correct I2C pins"); 
+    return bytes_written;     
     }
   #else
    if (!bytes_written) {   // FALSE

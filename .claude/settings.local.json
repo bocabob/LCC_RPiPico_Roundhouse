@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -r \"Servos\\\\[.*\\\\]\\\\.active\\\\|Servos\\\\[.*\\\\]\\\\.Position\\\\|activeServo\\\\|servoActive\" /c/GdriveBG/Arduino/LCC_RPiPico_Roundhouse --include=*.cpp --include=*.h)"
+    ]
+  }
+}
