@@ -45,4 +45,6 @@ void MoveServo(int i, int dir);
 
 // void setTrackDefaults();
 void setServoDefaults();
+void SetServoStatus(int i, int status);
+void updateServoRangesFromConfig();
 #endif

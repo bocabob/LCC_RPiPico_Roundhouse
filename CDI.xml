@@ -63,19 +63,19 @@
             <string size='16'><name>Description</name></string>
             <string size='5'><name>Short Name</name></string>   
             <eventid><name>Toggle Door (C)</name></eventid>
-            <int size='1'>
+            <int size="1">
                 <name>Servo Minimum Angle</name>
                 <description>Angular Position</description>
                 <min>0</min><max>180</max>
-                <default>0</default>
-                <hints><slider tickSpacing='10' immediate='yes'></slider></hints>
+                <default>45</default>  <!-- displayed as -45°; stored as 45 -->
+                <hints><slider tickSpacing="45" immediate="yes" showValue="yes"/></hints>
             </int>
-            <int size='1'>
+            <int size="1">
                 <name>Servo Maximum Angle</name>
                 <description>Angular Position</description>
                 <min>0</min><max>180</max>
-                <default>180</default>
-                <hints><slider tickSpacing='10' immediate='yes'></slider></hints>
+                <default>160</default>  <!-- displayed as 70°; stored as 160 -->
+                <hints><slider tickSpacing="45" immediate="yes" showValue="yes"/></hints>
             </int>
         </group>        
         <group>

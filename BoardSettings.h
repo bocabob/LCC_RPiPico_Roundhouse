@@ -138,21 +138,26 @@
 // need to define number of all events in event table
 // #define NUM_EVENT 5
 
-#define NUM_SERVOS 10
-#define NUM_POS 2
 
 // Servos
+#define NUM_SERVOS 10
+#define NUM_POS 2
 
 #define myPWMmin 104  // PWMmin	minimal PWM signal for the servo. This is not the minimal pulse width of the servo, but rather the pulse length count. Min and max values usually within (150-600) range.
 #define	myPWMmax 570  // PWMmax	maximal PWM signal for the servo. Just like the PWMmin, to be determined experimentally, by slowly raising the value and checking the motion range. 
 
 #define i_max_servo 10   // modify as desired, you can have 16 for each PCA9685
+#define SERVO_FREQ 60 // Analog servos run at ~50 Hz updates
+#define SERVO_SPEED 20
+#define START_POS 90
+#define SERVO_DURATION 1000000 // default time in microseconds for a servo to move from min to max position, used for constant speed movement
+
 #define MinServoRange -90
 #define MaxServoRange 90
-#define SERVO_FREQ 60 // Analog servos run at ~50 Hz updates
-
-#define angleMinimum -35
+#define angleMinimum -90
 #define angleMaximum 90
+#define defultMinAngle -45
+#define defultMaxAngle 70
 #define inversion 1
 
 

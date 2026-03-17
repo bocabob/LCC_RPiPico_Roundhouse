@@ -46,15 +46,15 @@ typedef struct{
   struct {    
 // Door parameters
     uint8_t DoorCount;    // int8 Number of Doors off turntable tracks
-    uint8_t  DoorSpeed;              /* 0x007F: int, 1b */
+    uint8_t DoorSpeed;              /* 0x007F: int, 1b */
     event_id_t OpenAll;      // producer eventID
     event_id_t CloseAll;      // producer eventID
     struct {
       char doorName[16];        // description of this Door
       char doorShort[5];        // short description of this Door
       event_id_t ToggleDoor;       // producer Toggle door position eventID
-      uint8_t  servo_min;          /* +0x001D: int, 2b */
-      uint8_t  servo_max;          /* +0x001F: int, 2b */
+      uint8_t  servo_min;   /* angle + 90; 0=−90°, 90=0°, 180=+90° */
+      uint8_t  servo_max;   /* angle + 90 */
     } doors[MAX_DOORS];
 // Lights parameters
     event_id_t ToggleInterior;       // producer Toggle Interior Lights eventID
@@ -88,26 +88,35 @@ extern config_mem_t ConfigMemHelper_config_data;
 
 // Reads the current NVM into the passed structure, the two are in synce when it returns.
 extern bool ConfigMemHelper_read(openlcb_node_t *openlcb_node, config_mem_t *config);
+
 // Writes the current passed structure in the NVM, the two are in synce when it returns.
 extern bool ConfigMemHelper_write(openlcb_node_t *openlcb_node, config_mem_t *config);
+
 // Loads the default values for the NMV into the structure and writes them to the NVM, the two are in synce when it returns.
 extern bool ConfigMemHelper_reset_and_write_default(openlcb_node_t *openlcb_node);
 
 // Sets all Configuration Memory to the default 0xFF that a newly programmed device would have
 extern void ConfigMemHelper_reset_config_mem(void);
+
 // Sets all Configuration Memory to 0x00 which is a valid "cleared memory"
 extern void ConfigMemHelper_clear_config_mem(void);
+
 // Tests if the first byte of the Configuration memory is 0xFF, if so then the memory not initialized (cleared 0x00 is initialized as byte 0 is the User Name string which initialized is a null string)
 extern bool ConfigMemHelper_is_config_mem_reset(void);
+
 // Returns true if the NVM can be read successfully; false if I2C communication failed
 extern bool ConfigMemHelper_nvm_is_accessible(void);
 
 // Hooks for the OpenLcbLib that allows snooping on Config Mem writes before passing them on to the Pico Drivers to write to NVM
 extern uint16_t ConfigMemHelper_config_mem_write(openlcb_node_t *openlcb_node, uint32_t address, uint16_t count, configuration_memory_buffer_t *buffer);
+
 // Hooks for the OpenLcbLib that allows snooping on Config Mem reads before passing them on to the Pico Drivers to read/ite to NVM
 extern uint16_t ConfigMemHelper_config_mem_read(openlcb_node_t *openlcb_node, uint32_t address, uint16_t count, configuration_memory_buffer_t *buffer);
 
 extern bool ConfigMemHelper_toggle_log_access(void);
+
+// Called by RPiPicoDrivers_config_mem_write to keep the RAM mirror in sync with every NVM write
+extern void ConfigMemHelper_mirror_write(uint32_t address, uint16_t count, configuration_memory_buffer_t *buffer);
 
 void Load_application_defaults(openlcb_node_t *openlcb_node);
 void Set_Application_Values_From_Config(openlcb_node_t *openlcb_node, config_mem_t *config);

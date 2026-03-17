@@ -54,6 +54,7 @@
 #include "src/openlcb/openlcb_application_broadcast_time.h"
 
 #include "Roundhouse.h"
+#include "TTcomms.h"
 
 // #define NODE_ID 0x050101010777
 #define NODE_ID 0x050101019416      // 05 01 01 01 94 ** range assigned to Bob Gamble / Southern Piedmont
@@ -184,6 +185,7 @@ void setup() {
   // Read the NVM into the local data structures
   Serial.println("Loading NVM values into Config Mem data variable");
   ConfigMemHelper_read(OpenLcbUserConfig_node_id, &ConfigMemHelper_config_data);
+  Set_Application_Values_From_Config(OpenLcbUserConfig_node_id, &ConfigMemHelper_config_data);
   Serial.println("Data variable loaded and ready for use");
   
   // initStringFlags();
@@ -191,9 +193,10 @@ void setup() {
   // InitialzePixels();  // TODO: JDK THIS CAUSED A HANG ON MY BOARD.... 
 
   setServoDefaults();
+	notice("Servos Set to Defaults");
   setupServos();
-	// notice("Roundhouse Program Started");
 	
+	notice("Roundhouse Program Started");
   setupComplete = true;
 
   Serial.println(F("Setup zero complete"));
@@ -208,6 +211,7 @@ void setup() {
   OpenLcbApplicationBroadcastTime_setup_consumer(OpenLcbUserConfig_node_id, BROADCAST_TIME_ID_DEFAULT_FAST_CLOCK); // initialize the fast clock
 
   node_initiated = true;
+	notice("Roundhouse Node Initiated");
 }
 
 

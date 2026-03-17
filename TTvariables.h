@@ -67,7 +67,6 @@ extern bool pixelsOn;
 
 typedef struct
 {
-	bool active;
 	int Status;
 	int ServoMin;
 	int ServoMax;

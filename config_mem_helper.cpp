@@ -20,6 +20,7 @@
 #include <stdio.h>
 
 #include "TTvariables.h"
+#include "Roundhouse.h"
 
 
 static bool _direct_access = false;
@@ -28,6 +29,19 @@ config_mem_t ConfigMemHelper_config_data;
 bool ConfigMemHelper_log_access = false;
 
 extern bool stepsSet;
+
+void ConfigMemHelper_mirror_write(uint32_t address, uint16_t count, configuration_memory_buffer_t *buffer) {
+
+  if (address >= sizeof(config_mem_t))
+    return;
+
+  if (address + count > sizeof(config_mem_t))
+    count = (uint16_t)(sizeof(config_mem_t) - address);
+
+  uint8_t *byte_array = (uint8_t*) &ConfigMemHelper_config_data;
+  memcpy(byte_array + address, buffer, count);
+
+}
 
 bool ConfigMemHelper_toggle_log_access(void) {
 
@@ -55,6 +69,7 @@ static void _load_defaults_reset_control(openlcb_node_t *openlcb_node, config_me
 static void _load_defaults_attributes(openlcb_node_t *openlcb_node, config_mem_t *config, uint16_t *consumer_index, uint16_t *producer_index) {
 
   config->attributes.DoorCount = NUM_DOORS;
+  config->attributes.DoorSpeed = SERVO_SPEED; // Default door speed
   config->attributes.OpenAll = swap_endian64((openlcb_node->id << 16) + *consumer_index); (*consumer_index)++; // EventID for open all doors
   config->attributes.CloseAll = swap_endian64((openlcb_node->id << 16) + *consumer_index); (*consumer_index)++; // EventID for close all doors
   const char *door_name = "Bay";
@@ -63,8 +78,8 @@ static void _load_defaults_attributes(openlcb_node_t *openlcb_node, config_mem_t
     strncpy(config->attributes.doors[d].doorName, door_name, sizeof(config->attributes.doors[d].doorName));
     strncpy(config->attributes.doors[d].doorShort, door_tag, sizeof(config->attributes.doors[d].doorShort));
     config->attributes.doors[d].ToggleDoor = swap_endian64((openlcb_node->id << 16) + *consumer_index); (*consumer_index)++; // EventID for toggle door
-    config->attributes.doors[d].servo_pwm_min = swap_endian16(500); // Min PWM for servo
-    config->attributes.doors[d].servo_pwm_max = swap_endian16(2500); // Max PWM for servo
+    config->attributes.doors[d].servo_min = defultMinAngle + 90;  // -45+90 = 45
+    config->attributes.doors[d].servo_max = defultMaxAngle + 90;  // 70+90  = 160
   }
   config->attributes.ToggleInterior = swap_endian64((openlcb_node->id << 16) + *consumer_index); (*consumer_index)++; // EventID for toggle interior lights
   config->attributes.ToggleExterior = swap_endian64((openlcb_node->id << 16) + *consumer_index); (*consumer_index)++; // EventID for toggle exterior lights
@@ -111,12 +126,18 @@ void Set_Application_Values_From_Config(openlcb_node_t *openlcb_node, config_mem
   // Set consumer event states
   for (int i = 0; i < (2+ConfigMemHelper_config_data.attributes.DoorCount+4); i++) {
     // openlcb_node->consumers[i].state = config->consumer_status[i];
+    
+    openlcb_node->consumers.list[i].status = ConfigMemHelper_config_data.consumer_status[i];
   }
 
   // Set producer event states
   for (int i = 0; i < (2); i++) {
     // openlcb_node->producers[i].state = config->producer_status[i];
+    openlcb_node->producers.list[i].status = ConfigMemHelper_config_data.producer_status[i];
   }
+
+  // Sync servo ranges from config to live library objects
+  updateServoRangesFromConfig();
 }
 uint16_t ConfigMemHelper_config_mem_write(openlcb_node_t *openlcb_node, uint32_t address, uint16_t count, configuration_memory_buffer_t *buffer) {
 
@@ -146,6 +167,9 @@ uint16_t ConfigMemHelper_config_mem_write(openlcb_node_t *openlcb_node, uint32_t
   uint8_t *byte_array = (uint8_t*) &ConfigMemHelper_config_data;
   byte_array += address;
   memcpy(byte_array, buffer, count);
+
+  // Sync application state (servo ranges, event states, etc.) from updated config
+  Set_Application_Values_From_Config(openlcb_node, &ConfigMemHelper_config_data);
 
   // Now write to the NVM
   return RPiPicoDrivers_config_mem_write(openlcb_node, address, count, buffer);

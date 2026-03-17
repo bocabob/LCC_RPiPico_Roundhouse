@@ -40,8 +40,6 @@ void init_servo(PCA9685_servo& servo, uint8_t mode, int16_t minRange, int16_t ma
 
 const int16_t totalMinutes = 21600;                 // Total minutes in one rotation (360 * 60)
 
-uint8_t trackCount = 0;                             // count of turntable tracks
-
 uint8_t ledState = 7;                               // Flag for the LED state: 4 on, 5 slow, 6 fast, 7 off.
 bool ledOutput = LOW;                               // Boolean for the actual state of the output LED pin.
 unsigned long ledMillis = 0;                        // Required for non blocking LED blink rate timing.
@@ -103,13 +101,13 @@ dP("\neventid callback: index="); dP((uint16_t)index);
     if (index < 2) { // if the event is an ALL door event
         switch (index) { //, , , , 
           case 0:  //   OpenAll  
-            for (int i = 0; i <= ConfigMemHelper_config_data.attributes.DoorCount; i++) {            
-              MoveServo(i, 32);            
-              // drawTrack(i,((Tracks[i].trackFront*360)/fullTurnSteps));            
+            for (int i = 0; i < ConfigMemHelper_config_data.attributes.DoorCount; i++) {            
+              MoveServo(i, 1);
+              // drawTrack(i,((Tracks[i].trackFront*360)/fullTurnSteps));
             }
           break;
           case 1:  //  CloseAll
-            for (int i = 0; i <= ConfigMemHelper_config_data.attributes.DoorCount; i++) {
+            for (int i = 0; i < ConfigMemHelper_config_data.attributes.DoorCount; i++) {
               MoveServo(i, 0);            
               // drawTrack(i,((Tracks[i].trackFront*360)/fullTurnSteps));
             }
@@ -126,7 +124,7 @@ dP("\neventid callback: index="); dP((uint16_t)index);
                 if (Servos[servoNum].Status)
                 {              MoveServo(servoNum, 0);            }
                 else
-                {              MoveServo(servoNum, 32);            }
+                {              MoveServo(servoNum, 1);            }
         }
         else {
         index = index - (2 + ConfigMemHelper_config_data.attributes.DoorCount); // adjust the index to account for the door events
@@ -150,18 +148,37 @@ dP("\neventid callback: index="); dP((uint16_t)index);
       }
 }
 
-void init_servo(PCA9685_servo& servo, uint8_t mode, int16_t minRange, int16_t maxRange, int16_t position, uint8_t address, uint64_t TConstDur)
+void init_servo(PCA9685_servo& servo, uint8_t mode, int8_t minRange, int8_t maxRange, int8_t position, uint8_t address, uint64_t TConstDur)
 {
     servo.setRange(minRange, maxRange);
     servo.setMode(mode);
     servo.setPosition(position); // move to mid point
     servo.setAddress(address);
     servo.setTConstantDuration(TConstDur);
-    servo.setAngularVelocity(20);
+    servo.setAngularVelocity(ConfigMemHelper_config_data.attributes.DoorSpeed);
     servo.setInvertMode(inversion);
 }
 
+void updateServoRangesFromConfig() {
+  for (int i = 0; i < ConfigMemHelper_config_data.attributes.DoorCount && i < (int)myServo.size(); i++) {
+      myServo[i].setRange((int8_t)(ConfigMemHelper_config_data.attributes.doors[i].servo_min - 90),
+                          (int8_t)(ConfigMemHelper_config_data.attributes.doors[i].servo_max - 90));
+      myServo[i].setAngularVelocity(ConfigMemHelper_config_data.attributes.DoorSpeed);
+  }
+}
+
 void setupServos(){
+  // I2C bus recovery: clock SCL 9 times to release a stuck slave
+  gpio_init(SERVO_SCL);
+  gpio_set_dir(SERVO_SCL, GPIO_OUT);
+  for (int n = 0; n < 9; n++) {
+    gpio_put(SERVO_SCL, 1); sleep_us(5);
+    gpio_put(SERVO_SCL, 0); sleep_us(5);
+  }
+  gpio_put(SERVO_SCL, 1); sleep_us(5);  // STOP condition
+  // Now hand the pin back to I2C hardware
+  gpio_set_function(SERVO_SCL, GPIO_FUNC_I2C);
+
   // Initialize PCA9685
   // Wire1.setSDA(SERVO_SDA);
   // Wire1.setSCL(SERVO_SCL);
@@ -175,7 +192,7 @@ void setupServos(){
   // initialize the servos created
   int i{0};
   for(auto& servo : myServo){
-      init_servo(servo, MODE_SCONSTANT, angleMinimum, angleMaximum, Servos[i].Position, i++, 1000000);
+      init_servo(servo, MODE_SCONSTANT, (int8_t)(ConfigMemHelper_config_data.attributes.doors[i].servo_min - 90), (int8_t)(ConfigMemHelper_config_data.attributes.doors[i].servo_max - 90), Servos[i].Position, i++, SERVO_DURATION);
   }
 
   start_t = time_us_64();
@@ -203,6 +220,7 @@ void setupServos(){
 void StartMoveHandler(uint16_t Address)
 {
     // called when a servo starts to move
+    SetServoStatus(Address, 2); // set the Status of the servo to "deviate" when it starts to move
     return;
 }
 
@@ -300,13 +318,13 @@ void MoveServo(int i, int dir)
   Serial.print(F("Activating Servo : "));
   Serial.println(i, DEC);
 
-  Servos[i].active = true;
-  Servos[i].Status = dir;
+  SetServoStatus(i, dir);
   // When MoveServo() activates a servo:
   // Call setPosition(finalTarget) ONCE, then just let loop() run.
-    
-  int16_t target = dir ? Servos[i].ServoMax : Servos[i].ServoMin;
-  myServo[i].setPosition((int8_t)target);
+  
+  int8_t target = dir ? (int8_t)(ConfigMemHelper_config_data.attributes.doors[i].servo_max - 90)
+                       : (int8_t)(ConfigMemHelper_config_data.attributes.doors[i].servo_min - 90);
+  myServo[i].setPosition(target);
 
     if (dir)
     {
@@ -320,51 +338,45 @@ void MoveServo(int i, int dir)
     }
 }  
 
-
-void setServoDefaults()
+void SetServoStatus(int i, int status)
 // memory for the Status of servo:  
 // 	0 = deviate position
 //  1 = correct position
 //  2 = Status on start sketch
+{
+  if (i > (MAX_DOORS - 1)) return;
+  switch (status)
+  {
+  case 0:
+    /* code for deviate position */
+    OpenLcbUserConfig_node_id->consumers.list[i+2].status = EVENT_STATUS_CLEAR;
+    ConfigMemHelper_config_data.consumer_status[i+2] = EVENT_STATUS_CLEAR;
+    break;
+  case 1:
+    /* code for correct position */
+    OpenLcbUserConfig_node_id->consumers.list[i+2].status = EVENT_STATUS_SET;
+    ConfigMemHelper_config_data.consumer_status[i+2] = EVENT_STATUS_SET;
+    break;
+  case 2:
+    /* code for status on start sketch */
+    OpenLcbUserConfig_node_id->consumers.list[i+2].status = EVENT_STATUS_UNKNOWN;
+    ConfigMemHelper_config_data.consumer_status[i+2] = EVENT_STATUS_UNKNOWN;
+    break;
+  
+  default:
+    break;
+  }
+  Servos[i].Status = status;
+}
+
+void setServoDefaults()
 
 {	
   for (int i = 0; i < (sizeof(Servos) / sizeof(ServoAddress)); i++) {
-      // Servos[i].address = ServoStartingAddress + i;	// DCC address for this servo
-      Servos[i].active = false; // servo in use flag
-      Servos[i].Status = 2; // flag for opening or closing of servo
+      // Servos[i].Status = 2; // flag for opening or closing of servo
+      SetServoStatus(i, 2); // set the Status of the servo to "unknown" at startup
       Servos[i].Position = 0; // current position
     }
   
-  // these are Status arrays for each servo
-	Servos[0].ServoMin = -45;	// position of servo at close
-	Servos[0].ServoMax = 70;	// position of servo at open
-
-	Servos[1].ServoMin = -45;
-	Servos[1].ServoMax = 70;
-
-	Servos[2].ServoMin = -45;
-	Servos[2].ServoMax = 50;
-
-	Servos[3].ServoMin = -45;
-	Servos[3].ServoMax = 50;
-
-	Servos[4].ServoMin = -45;
-	Servos[4].ServoMax = 60;
-  
-	Servos[5].ServoMin = -45;
-	Servos[5].ServoMax = 45;
-  
-	Servos[6].ServoMin = -45;
-	Servos[6].ServoMax = 56;
-  
-	Servos[7].ServoMin = -45;
-	Servos[7].ServoMax = 40;
-  
-	Servos[8].ServoMin = -45;
-	Servos[8].ServoMax = 45;
-  
-	Servos[9].ServoMin = -45;
-	Servos[9].ServoMax = 45;
-
-/*	repeat the above construct for any additional servos implemented 	*/
+/*  servo_min and servo_max are now configured per-door in CDI config (config_mem_helper) */
 }
