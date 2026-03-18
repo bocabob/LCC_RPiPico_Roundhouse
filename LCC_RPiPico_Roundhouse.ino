@@ -195,7 +195,8 @@ void setup() {
   setServoDefaults();
 	notice("Servos Set to Defaults");
   setupServos();
-	
+  initializeHardware();
+
 	notice("Roundhouse Program Started");
   setupComplete = true;
 

@@ -35,6 +35,7 @@
 // #include <Adafruit_PWMServoDriver.h>
 void RoundhouseCallback(uint16_t callin);
 void setupServos();
+void initializeHardware();
 void MoveServo(int i, int dir);
 void LightSwitch(int Light, int dir);
 void ToggleLight(int Light);

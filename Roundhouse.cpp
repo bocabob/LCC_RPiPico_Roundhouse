@@ -253,11 +253,11 @@ Lights[0].pin = Light_A;
 Lights[1].pin = Light_B;
 // Lights[1].address = 701;
 
-// for (int Light=0;Light<NumOfLights;Light++){  // roundhouse lights, move to neoPixels
-//     pinMode(Lights[Light].pin, OUTPUT);
-// 	  digitalWrite(Lights[Light].pin, LOW); // turn off
-//     Lights[Light].active = false;
-//   }
+for (int Light=0;Light<NumOfLights;Light++){  // roundhouse lights, move to neoPixels
+    pinMode(Lights[Light].pin, OUTPUT);
+	  digitalWrite(Lights[Light].pin, LOW); // turn off
+    Lights[Light].active = false;
+  }
 
 // Configure LED and accessory output pins
   // pinMode(ledPin, OUTPUT);
@@ -297,11 +297,15 @@ if (Light > (NumOfLights - 1)) return;
     {
       digitalWrite(Lights[Light].pin, LOW); // turn off
       Lights[Light].active = false;
+      Serial.print(F("Light off: "));
+      Serial.println(Light);
     }
     else
     {
       digitalWrite(Lights[Light].pin, HIGH); // turn on
       Lights[Light].active = true;
+      Serial.print(F("Light on: "));
+      Serial.println(Light);
     }
 #ifdef DEBUG_PRINT
       // LN_STATUS lnStatus = LocoNet.reportSensor(Lights[Light].address, Lights[Light].active);
