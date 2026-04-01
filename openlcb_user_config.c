@@ -78,10 +78,8 @@ const node_parameters_t OpenLcbUserConfig_node_parameters = {
     .address_space_configuration_definition.low_address_valid = false,
     .address_space_configuration_definition.low_address = 0x0,               // 0 decimal
     .address_space_configuration_definition.highest_address = USER_CDI_ARRAY_SIZE - 1,        // 3013 decimal (size of CDI array - 1 for 0-based address)
-    // .address_space_configuration_definition.address_space = 0xFF,  // 255 decimal
-    // .address_space_configuration_definition.description = "",
-  .address_space_configuration_definition.address_space = CONFIG_MEM_SPACE_CONFIGURATION_DEFINITION_INFO,
-  .address_space_configuration_definition.description = "Configuration definition info",
+    .address_space_configuration_definition.address_space = CONFIG_MEM_SPACE_CONFIGURATION_DEFINITION_INFO,
+    .address_space_configuration_definition.description = "Configuration definition info",
 
     // Space 0xFE (254 decimal)
     .address_space_all.read_only = true,
@@ -97,12 +95,9 @@ const node_parameters_t OpenLcbUserConfig_node_parameters = {
     .address_space_config_memory.present = true,
     .address_space_config_memory.low_address_valid = false,
     .address_space_config_memory.low_address = 0x0,               // 0 decimal
-    // .address_space_config_memory.highest_address = 0xFFFFFFFF,        // 4294967295 decimal
-    // .address_space_config_memory.address_space = 0xFD,  // 253 decimal
-    // .address_space_config_memory.description = "",
-  .address_space_config_memory.highest_address = (I2C_DEVICESIZE - 1),  // This is important for multi node applications as the config memory for node N will start at (N * high-low) and they all must be the same for any parameter file in a single app
-  .address_space_config_memory.address_space = CONFIG_MEM_SPACE_CONFIGURATION_MEMORY,
-  .address_space_config_memory.description = "Configuration memory storage",
+    .address_space_config_memory.highest_address = (I2C_DEVICESIZE - 1),  // This is important for multi node applications as the config memory for node N will start at (N * high-low) and they all must be the same for any parameter file in a single app
+    .address_space_config_memory.address_space = CONFIG_MEM_SPACE_CONFIGURATION_MEMORY,
+    .address_space_config_memory.description = "Configuration memory storage",
 
     // Space 0xFC (252 decimal)
     .address_space_acdi_manufacturer.read_only = true,

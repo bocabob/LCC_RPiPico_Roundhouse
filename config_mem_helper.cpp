@@ -1,4 +1,3 @@
-#include <sys/_stdint.h>
 /**
  * Configuration Memory Helper Implementation
  * Auto-generated from OpenLCB configuration
@@ -27,8 +26,6 @@ static bool _direct_access = false;
 
 config_mem_t ConfigMemHelper_config_data;
 bool ConfigMemHelper_log_access = false;
-
-extern bool stepsSet;
 
 void ConfigMemHelper_mirror_write(uint32_t address, uint16_t count, configuration_memory_buffer_t *buffer) {
 
@@ -91,11 +88,6 @@ static void _load_defaults_attributes(openlcb_node_t *openlcb_node, config_mem_t
 }
 
 static void _load_defaults_status(openlcb_node_t *openlcb_node, config_mem_t *config, uint16_t *consumer_index, uint16_t *producer_index) {
-/*
-
-  uint8_t event_state[2+12+28]; // Array to hold the state of each event (on/off/unknown) for the 42 events defined in the configuration
-
-*/
   for (int i = 0; i < (2+ConfigMemHelper_config_data.attributes.DoorCount+4); i++) {
     config->consumer_status[i] = EVENT_STATUS_UNKNOWN; // Default event state is unknown (0)
   }
@@ -106,33 +98,17 @@ static void _load_defaults_status(openlcb_node_t *openlcb_node, config_mem_t *co
 
 }
 static void _load_defaults_application(openlcb_node_t *openlcb_node, config_mem_t *config, uint16_t *consumer_index, uint16_t *producer_index) {
-/*
-
-*/
-    
   Set_Application_Values_From_Config(openlcb_node, config);
-return;
-
-
 }
 
 void Set_Application_Values_From_Config(openlcb_node_t *openlcb_node, config_mem_t *config) {
-/*
-
-*/
-  // Set any values in the application that are stored in the config struct here.  This is called after a config read or write to keep the application in sync with the config values in RAM.  It is also called after loading defaults to set the application to the default values.
-
-  // For example:
-  // Set consumer event states
+  // Sync consumer and producer event status from RAM config to the live node lists.
+  // Called after a config read or write to keep the node in sync with NVM.
   for (int i = 0; i < (2+ConfigMemHelper_config_data.attributes.DoorCount+4); i++) {
-    // openlcb_node->consumers[i].state = config->consumer_status[i];
-    
     openlcb_node->consumers.list[i].status = ConfigMemHelper_config_data.consumer_status[i];
   }
 
-  // Set producer event states
-  for (int i = 0; i < (2); i++) {
-    // openlcb_node->producers[i].state = config->producer_status[i];
+  for (int i = 0; i < MAX_DOORS; i++) {
     openlcb_node->producers.list[i].status = ConfigMemHelper_config_data.producer_status[i];
   }
 
@@ -148,7 +124,6 @@ uint16_t ConfigMemHelper_config_mem_write(openlcb_node_t *openlcb_node, uint32_t
 
     delay(10);
     bytes_written = RPiPicoDrivers_config_mem_write(openlcb_node, address, count, buffer);
-    // RPiPicoDrivers_config_mem_read(openlcb_node, address, count, buffer);
     delay(10);
     Set_Application_Values_From_Config(openlcb_node, &ConfigMemHelper_config_data);
     return bytes_written;
@@ -202,9 +177,6 @@ uint16_t ConfigMemHelper_config_mem_read(openlcb_node_t *openlcb_node, uint32_t 
   uint8_t *byte_array = (uint8_t*) &ConfigMemHelper_config_data;
   byte_array += address;
   memcpy(buffer, byte_array, count);
-
-  // Now read from the NVM
-  // return RPiPicoDrivers_config_mem_read(openlcb_node, address, count, buffer);
 
   return count;
 

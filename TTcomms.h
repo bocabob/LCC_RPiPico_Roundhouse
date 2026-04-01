@@ -1,7 +1,7 @@
 /*
  * Parts of this © 2022 Peter Cole, 2023-5 Bob Gamble
  *
- *  This file is a part of the LCCt Turntable project
+ *  This file is a part of the LCC Roundhouse project
  *
  *  This is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,13 +23,7 @@
 #include <Wire.h>
 #include "Roundhouse.h"
 #include "TTvariables.h"
-// #include "EEPROMFunctions.h"
-// #include "version.h"
-
-
-
 void notice(const char *string);
-// void touchIO(int x);
 void TurnOnPixels();
 void TurnOffPixels();
 void TogglePixels();

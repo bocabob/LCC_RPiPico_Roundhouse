@@ -24,9 +24,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file BasicNode.ino
+ * \file LCC_RPiPico_Roundhouse.ino
  *
- * This sketh will create a very basic OpenLcb Node.  
+ * This sketch creates an OpenLcb Roundhouse controller node.
  *
  * @author Jim Kueneman, Bob Gamble, David Harris, and others
  * @date 14 Mar 2025
@@ -37,7 +37,6 @@
 #include <LibPrintf.h>
 
 #include "BoardSettings.h"
-// #include "TTconfig.h"
 #include "TTvariables.h"
 
 #include "callbacks.h"
@@ -56,12 +55,7 @@
 #include "Roundhouse.h"
 #include "TTcomms.h"
 
-// #define NODE_ID 0x050101010777
 #define NODE_ID 0x050101019416      // 05 01 01 01 94 ** range assigned to Bob Gamble / Southern Piedmont
-// #define NODE_ADDRESS  5,1,1,1,94,0x08   // 05 01 01 01 94 ** range assigned to Bob Gamble / Southern Piedmont
-
-// MemStruct CDI_RAM;
-// extern bool GroupState[MAX_GROUPS];   // defined in NPlights.cpp
 
 static const can_config_t can_config = {
     .transmit_raw_can_frame  = &RPiPicoCanDriver_transmit_raw_can_frame,
@@ -82,7 +76,7 @@ static const openlcb_config_t openlcb_config = {
     .factory_reset                   = &Callbacks_operations_request_factory_reset,
     .freeze                          = &Callbacks_freeze,
     .unfreeze                        = &Callbacks_unfreeze,
-    .firmware_write                  = &Callbacks_write_firemware,
+    .firmware_write                  = &Callbacks_write_firmware,
     .on_100ms_timer                  = &Callbacks_on_100ms_timer_callback,
     .on_login_complete               = &Callbacks_on_login_complete,
     .on_consumed_event_identified    = &Callbacks_on_consumed_event_identified,
@@ -96,7 +90,7 @@ void _check_for_nvm_initialization(void) {
 
   if (!ConfigMemHelper_nvm_is_accessible()) {
     Serial.println("FATAL: NVM not accessible - check I2C wiring, address (0x50), and pullups on SDA/SCL");
-    while (true) { delay(1000); }  // halt
+    // while (true) { delay(1000); }  // halt
   }
 
   // If the first byte of the configuration memory is 0xFF then the space has never been accessed (fresh firmware load) and need to be initialized to 0x00
@@ -110,20 +104,29 @@ void _check_for_nvm_initialization(void) {
 
   } else {
 
-    Serial.println("Configuration Memory has been previously initalized");
+    Serial.println("Configuration Memory has been previously initialized");
 
   }
 
 }
 
 void _register_producers(void) {
-
+  // Register each door's ToggleDoor event as a producer so that the OpenLCB
+  // stack will broadcast a "Producer Identified" message during LCB login,
+  // carrying the NVM-restored open/closed state.  The Turntable node (and any
+  // other node on the bus) will receive these messages to sync their displays.
   OpenLcbApplication_clear_producer_eventids(OpenLcbUserConfig_node_id);
 
+  for (int i = 0; i < ConfigMemHelper_config_data.attributes.DoorCount; i++) {
+    OpenLcbApplication_register_producer_eventid(
+        OpenLcbUserConfig_node_id,
+        swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].ToggleDoor),
+        ConfigMemHelper_config_data.producer_status[i]);  // NVM-restored SET/CLEAR/UNKNOWN
+  }
 }
 
 void _register_consumers(void) {
-int index = 0;
+  int index = 0;
   OpenLcbApplication_clear_consumer_eventids(OpenLcbUserConfig_node_id);
 
   OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.OpenAll), ConfigMemHelper_config_data.consumer_status[index++]);  // need to read the state from the NVM to know if it is on/off/unknown when registering the consumer event ID
@@ -145,7 +148,6 @@ bool node_initiated = false;
 
 ////// DECLARATIONS
 
-extern bool lastRunningState;   // Stores last running state to allow turning the stepper off after moves.
 bool setupComplete = false;
 bool setup1Complete = false;
 bool StorageReady = false;
@@ -155,8 +157,6 @@ npStrings _Strings[MAX_STRINGS];
 
 
 void setup() {
-  // put your setup code here, to run once:
-
   pinMode(LED_BUILTIN, OUTPUT);
 
   Serial.begin(115200);
@@ -188,10 +188,6 @@ void setup() {
   Set_Application_Values_From_Config(OpenLcbUserConfig_node_id, &ConfigMemHelper_config_data);
   Serial.println("Data variable loaded and ready for use");
   
-  // initStringFlags();
-  // SetupPixels();
-  // InitialzePixels();  // TODO: JDK THIS CAUSED A HANG ON MY BOARD.... 
-
   setServoDefaults();
 	notice("Servos Set to Defaults");
   setupServos();
@@ -217,9 +213,7 @@ void setup() {
 
 
 void setup1() {
-  // put your setup code here, to run once:
-  // while (!Serial) {}
-  delay(1000);  /* wait */
+  delay(1000);  // brief wait to let Core 0 setup() reach while(!setup1Complete)
   setup1Complete = true;
   Serial.println(F("Setup one complete"));
 
@@ -291,23 +285,13 @@ void loop() {
     };  
   }
 
-  // // put your main code here, to run repeatedly
   RPiPicoCanDriver_process_receive();
 
   OpenLcb_run();
-  // ProcessPixels();
 }
 
 // ==== Loop Two for node function processes ==========================
 void loop1() {
-  static long nextdot = 0;
-  if(millis()>nextdot) {
-    nextdot = millis()+2000;
-    //dP("\n.");
-  }
-    
-  // ResetStrings(); // ResetDirty()
-  // ProcessPixels();
   driveServos();
   
 }

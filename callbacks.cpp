@@ -51,9 +51,16 @@
 #include "src/drivers/canbus/can_buffer_store.h"
 
 extern void RoundhouseCallback(uint16_t callin);
+extern void Roundhouse_send_pending_door_pcers();
 extern config_mem_t ConfigMemHelper_config_data;
 
 static int16_t _100ms_ticks = 0;
+static int16_t _nvm_write_ticks = 0;
+
+// Deferred EEPROM write-back: set to true whenever RAM config changes that need
+// to survive a power cycle.  The 100ms timer writes to EEPROM once the flag has
+// been set and 3 seconds of quiet time have elapsed, preventing write storms.
+volatile bool _config_dirty = false;
 
 static File _image_file;
 static uint32_t _bytes_written = 0;
@@ -63,31 +70,9 @@ static bool _can_transmission_valid = false;
 
 const char _BOOTLOADER_FILENAME[] = "bootloader.bin";
 
-// static void _printUint64HexWithDots(event_id_t val) {
-//   // Use a loop to iterate through all 8 bytes (64 bits)
-//   for (int i = 7; i >= 0; i--) {
-//     // Extract the desired byte by shifting the number right by i * 8 bits
-//     // and masking with 0xFF to get only the last 8 bits (one byte)
-//     uint8_t byteVal = (val >> (i * 8)) & 0xFF;
-
-//     // Print the byte value in HEX format
-//     // Serial.print(byteVal, HEX) would not print leading zeros for values < 0x10
-//     // We need a helper to ensure two characters are always printed
-//     if (byteVal < 0x10) {
-//       Serial.print('0');  // Print a leading zero if needed
-//     }
-//     Serial.print(byteVal, HEX);  // Print the hex value in uppercase
-
-//     // Add a dot separator if it's not the last byte
-//     if (i > 0) {
-//       Serial.print('.');
-//     }
-//   }
-// }
-
 void Callbacks_initialize(void) {
 
-  // TODO: Initialize any librarys needed in this module
+  // TODO: Initialize any libraries needed in this module
 }
 
 bool Callbacks_toggle_log_messages(void) {
@@ -109,40 +94,33 @@ void Callbacks_on_consumed_event_identified(openlcb_node_t *openlcb_node, uint16
   // If was a direct hit then index points to the nodeID in the consumers list  and event_id points to it.
   // If was a range hit then index will be 0xFFFF and the event_id is the event that was hit.
 
-  // Serial.print("Received a produced event identified that we are registered as a consumer of: EventID = ");
-  // _printUint64HexWithDots(*event_id);
-  // Serial.println();
-
   if (index == 0xFFFF) {
 
-  //  printf("Within registered Consumer Range\n");
+    return;  // range hit — no specific consumer entry to update
 
   } else {
 
-  //  printf("at index: %d in Node.Consumers.List[]\n", index);
-
-
-    // Serial.print("Found Event in Node Consumer List at index ");
-    // Serial.print(index);
-    // Serial.print(", and its status is ");
     switch (openlcb_node->consumers.list[index].status) {
-
-      case EVENT_STATUS_UNKNOWN:
-   //     Serial.println("Node says EventID is Unknown");
-        break;
-
-      case EVENT_STATUS_SET:
-   //     Serial.println("Node says Set is Unknown");
-        break;
-
-      case EVENT_STATUS_CLEAR:
-    //    Serial.println("Node says Clear is Unknown");
-        break;
+      case EVENT_STATUS_UNKNOWN:  break;
+      case EVENT_STATUS_SET:      break;
+      case EVENT_STATUS_CLEAR:    break;
     }
     
     ConfigMemHelper_config_data.consumer_status[index] = openlcb_node->consumers.list[index].status;
 
-    // RoundhouseCallback(index);
+    // RoundhouseCallback(index) is intentionally suppressed here.
+    //
+    // During LCC login the stack fires on_consumed_event_identified for every
+    // Consumer Identified message on the bus — including the Roundhouse's own
+    // broadcasts that it generated at startup.  Acting on those would re-trigger
+    // servo moves for doors that were already restored to their correct position
+    // from NVM by setServoDefaults() / setupServos().  Calling MoveServo() a
+    // second time during login can produce a write storm of back-to-back EEPROM
+    // writes and, in the worst case, an I2C bus lockup (SDA held low).
+    //
+    // The Roundhouse is already in the correct state from NVM at this point.
+    // All live commands arrive via on_consumed_event_pcer(), which does call
+    // RoundhouseCallback().
   }
 }
 
@@ -151,20 +129,12 @@ void Callbacks_on_consumed_event_pcer(openlcb_node_t *openlcb_node, uint16_t ind
   // If was a direct hit then index points to the nodeID in the consumers list and event_id points to it.
   // If was a range hit then index will be 0xFFFF and the event_id is the event that was hit.
 
-  // Serial.print("Received a PECR event that we are registered as a consumer of: EventID = ");
-  // _printUint64HexWithDots(*event_id);
-  // Serial.println();
-
   if (index == 0xFFFF) {
 
-  //  Serial.println("Within registered Consumer Range");
+    return;  // range hit — no specific consumer entry to update
 
   } else {
 
-    // Serial.print("at index: ");
-    // Serial.print(index);
-    // Serial.println(" in Node.Consumers.List[]");
-    
     ConfigMemHelper_config_data.consumer_status[index] = openlcb_node->consumers.list[index].status;
     
     RoundhouseCallback(index);
@@ -178,39 +148,17 @@ void Callbacks_on_broadcast_time_time_changed(broadcast_clock_t *clock) {
     printf("Current time: %02d:%02d ", clock->state.time.hour, clock->state.time.minute);
     Serial.print(", Rate: ");
     Serial.println(clock->state.rate.rate);
-    if (clock->state.time.valid) {
-        // drawFastClock(clock->state.time.hour, clock->state.time.minute);
-    }
-
-    /* ConfigMemHelper_config_data;
-      struct {
-        struct {  // Group (replicated 6 times)
-            event_id_t turn_group_on;
-            event_id_t turn_group_off;
-            uint8_t on_hour; // Hour of the day that the group turns on
-            uint8_t on_minute; // Minute of the hour that the group turns on
-            uint8_t off_hour; // Hour of the day that the group turns off
-            uint8_t off_minute; // Minute of the hour that the group turns off
-        } cntrl_group[6];
-      } controls;
-    */
-    // for (int i = 0; i < 6; i++) {
-    //   if (ConfigMemHelper_config_data.controls.cntrl_group[i].on_hour*60+ConfigMemHelper_config_data.controls.cntrl_group[i].on_minute != ConfigMemHelper_config_data.controls.cntrl_group[i].off_hour*60+ConfigMemHelper_config_data.controls.cntrl_group[i].off_minute) {  // Check if the group is configured with times to trigger
-    //     if ((clock->state.time.hour == ConfigMemHelper_config_data.controls.cntrl_group[i].on_hour) && (clock->state.time.minute == ConfigMemHelper_config_data.controls.cntrl_group[i].on_minute)) {
-    //       PixelCallback(2 + 2*i);  // This is just an example of how to trigger an event on a schedule.  In this case it will trigger the turn_group_on event for the group that matches the current time.  The event index is just an example and should be replaced with the actual index of the event in the configuration.
-    //     }
-    //     if ((clock->state.time.hour == ConfigMemHelper_config_data.controls.cntrl_group[i].off_hour) && (clock->state.time.minute == ConfigMemHelper_config_data.controls.cntrl_group[i].off_minute)) {
-    //       PixelCallback(2 + 2*i + 1);  // This is just an example of how to trigger an event on a schedule.  In this case it will trigger the turn_group_off event for the group that matches the current time.  The event index is just an example and should be replaced with the actual index of the event in the configuration.
-    //     }
-    //   }
-    // }
   }
 
 }
 
 void Callbacks_on_100ms_timer_callback(void) {
-  
-    if (!_can_transmission_valid) {
+
+  // Send any door PCERs queued by StopMoveHandler (Core 1) so consumers such as
+  // the Turntable display receive the confirmed final door state.
+  Roundhouse_send_pending_door_pcers();
+
+  if (!_can_transmission_valid) {
 
       if (_100ms_ticks > 10) {
    
@@ -229,6 +177,20 @@ void Callbacks_on_100ms_timer_callback(void) {
     }
 
   _100ms_ticks++;
+
+  // Deferred EEPROM write-back: accumulate ticks while dirty, then write once
+  // after 30 ticks (~3 seconds) of stability.  Resets the counter on each new
+  // dirty event so rapid state changes coalesce into a single physical write.
+  if (_config_dirty) {
+    _nvm_write_ticks++;
+    if (_nvm_write_ticks >= 30) {
+      ConfigMemHelper_write(OpenLcbUserConfig_node_id, &ConfigMemHelper_config_data);
+      _config_dirty = false;
+      _nvm_write_ticks = 0;
+    }
+  } else {
+    _nvm_write_ticks = 0;
+  }
 }
 
 void Callbacks_on_can_rx_callback(can_msg_t *can_msg) {
@@ -286,7 +248,7 @@ void Callbacks_operations_request_factory_reset(openlcb_statemachine_info_t *sta
   printf("Factory Reset: NodeID = 0x%06llX\n", OpenLcbUtilities_extract_node_id_from_openlcb_payload(statemachine_info->incoming_msg_info.msg_ptr, 0));
 }
 
-void Callbacks_write_firemware(openlcb_statemachine_info_t *statemachine_info, config_mem_write_request_info_t *config_mem_write_request_info) {
+void Callbacks_write_firmware(openlcb_statemachine_info_t *statemachine_info, config_mem_write_request_info_t *config_mem_write_request_info) {
 
   if (_image_file) {
 
@@ -312,13 +274,13 @@ void Callbacks_freeze(openlcb_statemachine_info_t *statemachine_info, config_mem
 
     Serial.println("Requesting Firmware update");
     _bytes_written = 0;            // Reset
-    _firmware_image_valid = true;  // Start optomisic
+    _firmware_image_valid = true;  // Start optimistic
 
     // Get the file system ready
     LittleFS.begin();  // Will close in unfreeze
 
     // Detect if the file exists and delete it if necessary
-    Serial.println("Detected presense of old image file");
+    Serial.println("Detected presence of old image file");
     if (LittleFS.exists(_BOOTLOADER_FILENAME)) {
       if (LittleFS.remove(_BOOTLOADER_FILENAME)) {
         Serial.println("Existing firmware image removed");
@@ -336,7 +298,7 @@ void Callbacks_freeze(openlcb_statemachine_info_t *statemachine_info, config_mem
       Serial.println("File Failed to Open");
     }
 
-    // Allows the node to reply that it is in Firmware Updgrade Mode if asked
+    // Allows the node to reply that it is in Firmware Upgrade Mode if asked
     statemachine_info->openlcb_node->state.firmware_upgrade_active = true;
     // Per the spec tell the configuration tool  we are ready to receive the data
     OpenLcbApplication_send_initialization_event(statemachine_info->openlcb_node);

@@ -26,18 +26,11 @@
 bool _changed = false;
 uint32_t read_started_ms = millis();
 uint32_t _last_change = millis();
-// uint32_t _db_time = DEBOUNCE_TOUCH;	// Debounce time (ms).
 
-// Create an instance of NeoPixelConnect and initialize it
-// to use GPIO pin PixelPin as the control pin, for a string
-// of PixelCount neopixels. Name the instance strip
-
+// NeoPixel strip — GPIO pin PixelPin, PixelCount pixels
 NeoPixelConnect strip(PixelPin, PixelCount, NeoPixel_PIO, 0);
 
 bool pixelsOn = false;
-// int activeScreen = 0;
-// int editTrack = 0;
-// int editServo = 0;
 
 
 void notice(const char *string)
@@ -89,19 +82,11 @@ void TogglePixels()   // toggle the pixels
 
 void DimmerHigh()      // set to higher intensity
 {
-uint8_t luminance;
-  // DimON = false;
-  // luminance = _HighLuminosity;
-  // strip.SetLuminance(luminance); // requires different neopixel library
-  // strip.Show();
+  // TODO: implement luminance control once NeoPixelBus SetLuminance API is available
   Serial.println("All Bright ...");
 }
-void DimmerLow()      // dim intensity
+void DimmerLow()      // set to lower intensity
 {
-uint8_t luminance; 
-  // DimON = true;
-  // luminance = _LowLuminosity;
-  // strip.SetLuminance(luminance); // requires different neopixel library
-  // strip.Show();        
+  // TODO: implement luminance control once NeoPixelBus SetLuminance API is available
   Serial.println("All Dim ...");
 }

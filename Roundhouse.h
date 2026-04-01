@@ -17,9 +17,9 @@
 */
 
 /*=============================================================
- * This file contains all functions pertinent to turntable
- * operation including stepper movements, relay phase switching,
- * and LED/accessory related functions.
+ * This file contains all functions pertinent to roundhouse
+ * operation including servo-controlled door movements and
+ * GPIO light control functions.
 =============================================================*/
 
 #ifndef ROUNDHOUSE_H
@@ -32,7 +32,6 @@
 #include <SPI.h>    // Call up the TFT driver library
 
 
-// #include <Adafruit_PWMServoDriver.h>
 void RoundhouseCallback(uint16_t callin);
 void setupServos();
 void initializeHardware();
@@ -40,12 +39,13 @@ void MoveServo(int i, int dir);
 void LightSwitch(int Light, int dir);
 void ToggleLight(int Light);
 void driveServos();
-void MoveServo(int i, int dir);
-// void touchCommand(int boxCode);
-// LN code
-
-// void setTrackDefaults();
 void setServoDefaults();
 void SetServoStatus(int i, int status);
 void updateServoRangesFromConfig();
+
+// Called from Core 0 (Callbacks_on_100ms_timer_callback) to send a PCER for any
+// door whose servo finished moving since the last call.  StopMoveHandler (Core 1)
+// sets a pending flag; this function services it safely on Core 0.
+void Roundhouse_send_pending_door_pcers();
+
 #endif

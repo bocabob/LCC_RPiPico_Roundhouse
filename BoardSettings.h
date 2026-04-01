@@ -2,17 +2,15 @@
  *  This is the configuration file for the Raspberry Pi Pico node hardware.
  */
 
-// Configureation settings
+// Configuration settings
 
 #ifndef DEFINES_H
 #define DEFINES_H
 
-// #include <cstdint>
-
 #define ARDUINO_COMPATIBLE
 
 // --------------------------------------------
-// Select ONE of these for Non-volitile Memory Storage
+// Select ONE of these for Non-volatile Memory Storage
 // --------------------------------------------
 // #define USE_INTERNAL_FLASH_STORAGE
 #define USE_I2C_STORAGE
@@ -76,20 +74,9 @@
 // #define I2C2_SDA  10           // pin to use
 // #define I2C2_SCL  11           // pin to use
 
-#define NeoPixel_PinA 2           // pin to use for the board interface
-#define NeoPixel_PinB 6           // pin to use for the board interface
-#define NeoPixel_PinC 7           // pin to use for the board interface
-#define NeoPixel_PinD 3           // pin to use for the board interface
-
 #define NumOfLights 2
 #define Light_A 10
 #define Light_B 11
-
-/////////////////////////////////////////////////////////////////////////////////////
-//  Define the LED blink rates for fast and slow blinking in milliseconds.
-// 
-//  The LED will alternative on/off for these durations.
-#define FREQUENCY 100
 
 #define UNUSED_PIN 127
 
@@ -113,13 +100,6 @@
 //    SDO output of MCP2517 is connected to pin #1
 //  CS input of MCP2517 should be connected to a digital output port
 //  INT output of MCP2517 should be connected to a digital input port, with interrupt capability
-
-// static const byte MCP2517_SCK = 18 ; // SCK input of MCP2517/8
-// static const byte MCP2517_SDI =  19 ; // SI input of MCP2517/8
-// static const byte MCP2517_SDO =  16 ; // SO output of MCP2517/8
-// static const byte MCP2517_CS  = 17 ; // CS input of MCP2517/8
-// static const byte MCP2517_INT = 20 ; // INT output of MCP2517/8
-//——————————————————————————————————————————————————————————————————————————————
 
 #define MCP2517_SPI  SPI   // SPI port to use for MCP2517/8
 
@@ -161,26 +141,14 @@
 #define inversion 1
 
 
-// #define MAX_TRACKS 20
-// #define NUM_TRACKS 14
 #define MAX_DOORS 16
 #define NUM_DOORS 10
 
 #define MAX_STRINGS 1
 #define MAX_LIGHTS 20
-// #define NumOfLights MAX_STRINGS * MAX_LIGHTS
-
-// #define NUM_TABLE_EVENTS  5
-// #define NUM_TRACK_EVENTS MAX_TRACKS * 2
-#define NUM_DOOR_EVENTS 2 + MAX_DOORS // 2 All events and a toggle for each servo
-// Light events
-#define NUM_LUM_EVENTS  5
-// #define NUM_LIGHT_EVENTS MAX_STRINGS * MAX_LIGHTS * 9
-#define NUM_EVENT NUM_DOOR_EVENTS + NUM_LUM_EVENTS //+ NUM_TRACK_EVENTS + NUM_TABLE_EVENTS 
-
-// #include <cstdint>
-
-// #include <NeoPixelBusLg.h>
+#define NUM_DOOR_EVENTS 2 + MAX_DOORS  // OpenAll + CloseAll + one ToggleDoor per door
+#define NUM_LUM_EVENTS  5              // Interior, Exterior, HighLum, LowLum + spare
+#define NUM_EVENT NUM_DOOR_EVENTS + NUM_LUM_EVENTS
 
 #define NeoPixel_PinA 2        // (use any (mega 22-43) - 12 / 25) for the bridge / board interface
 #define NeoPixel_PinB 6        // (use any (mega 22-43) - 12 / 25) for the bridge / board interface
@@ -196,9 +164,6 @@ const uint8_t PixelPin = NeoPixel_PinA;  // pin for the data line, ignored for E
 #define RedLevel 50   // bridge center
 #define BlueLevel 10  // bridge shack
 #define GreenLevel 0
-
-// #define MAX_STRINGS 4 // also defined in NPlights.cpp and program .ino files and need to update event table
-// #define MAX_LIGHTS 20 // also defined in NPlights.cpp and program .ino files
 
 #define brightnesss 90
 #define MAX_LUMINANCE 100

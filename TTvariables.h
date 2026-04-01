@@ -1,69 +1,12 @@
 // Variables and Declarations
 
-
-#include "BoardSettings.h"
-#include <SPI.h>    // Call up the TFT driver library
-
-
-
 #ifndef VARIABLES_H
 #define VARIABLES_H
 
+#include "BoardSettings.h"
+#include <SPI.h>
+
 extern bool pixelsOn;
-
-// extern int LightPin[NumOfLights] {Light_A, Light_B};
-// extern int LightAddr[NumOfLights] {700, 701};
-
-
-
-// const char TrackName[MAX_TRACKS][25]=
-// {
-// 	"                     ",
-//   "Entry Track 1  ",
-//   "Entry Track 2  ",
-//   "Entry Track 3  ",
-//   "Roundhouse Bay 1 ",
-//   "Roundhouse Bay 2 ",
-//   "Roundhouse Bay 3 ",
-//   "Roundhouse Bay 4 ",
-//   "Roundhouse Bay 5 ",
-//   "Roundhouse Bay 6 ",
-//   "Roundhouse Bay 7 ",
-//   "Roundhouse Bay 8 ",
-//   "Roundhouse Bay 9 ",
-//   "Roundhouse Bay 10",
-//   "Machine Shop     ",
-// 	"                     ",
-// 	"                     ",
-// 	"                     ",
-// 	"                     ",
-// 	"                     ",
-// };
-
-// const char TrackTag[MAX_TRACKS][5]=
-// {
-// 	" ",
-//   "1",
-//   "2",
-//   "3",
-//   "1",
-//   "2",
-//   "3",
-//   "4",
-//   "5",
-//   "6",
-//   "7",
-//   "8",
-//   "9",
-//   "10",
-//   "Shop",
-// 	" ",
-// 	" ",
-// 	" ",
-// 	" ",
-// 	" ",
-// };
-
 
 typedef struct
 {
@@ -73,7 +16,6 @@ typedef struct
 	int Position;
 }
 ServoAddress;
-// extern ServoAddress Servos[MAX_DOORS];
 
 typedef struct
 {
@@ -81,17 +23,6 @@ typedef struct
 	bool active;
 }
 LightAddress;
-// extern LightAddress Lights[NumOfLights];
-
-// Door parameters
-// extern uint8_t _DoorCount;    // int8 Number of Doors off turntable tracks
-
-// typedef struct {
-//   char doorName[16];        // description of this Door
-//   char doorShort[5];        // short description of this Door
-//   uint8_t TrackLocation;    // int8 number of the track where the door is located
-// } doors;
-// extern doors _Doors[MAX_DOORS];
 
 #include <NeoPixelBus.h>
 
