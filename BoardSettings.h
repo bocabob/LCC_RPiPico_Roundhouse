@@ -1,13 +1,33 @@
 /*
  *  This is the configuration file for the Raspberry Pi Pico node hardware.
+ *  Defines and constants.
  */
-
-// Configuration settings
 
 #ifndef DEFINES_H
 #define DEFINES_H
 
+// ProjectConfig.h is the single source of truth for board selection.
+// It is included here so that ALL translation units (.cpp files) get the same
+// defines through their BoardSettings.h include chain.
+#include "ProjectConfig.h"
+
 #define ARDUINO_COMPATIBLE
+
+// --------------------------------------------
+//  Board hardware selection
+//  Set in ProjectConfig.h — do not define here or in individual .cpp files.
+// --------------------------------------------
+#if defined(LCC_BOARD_NODE_V25)
+  #include "board_configs/BoardPins_Node_v25.h"
+#elif defined(LCC_BOARD_NODE_V26)
+  #include "board_configs/BoardPins_Node_v26.h"
+#elif defined(LCC_BOARD_NODE_V27)
+  #include "board_configs/BoardPins_Node_v27.h"
+#elif defined(LCC_BOARD_NODE_V28)
+  #include "board_configs/BoardPins_Node_v28.h"
+#else
+  #error "No board version defined. Set LCC_BOARD_NODE_V25/V26/V27/V28 in ProjectConfig.h"
+#endif
 
 // --------------------------------------------
 // Select ONE of these for Non-volatile Memory Storage
@@ -53,26 +73,18 @@
 
 /////////////////////////////////////////////////////////////////////////////////////
 //  Define a valid (and free) I2C address, 0x60 is the default.
-// 
-// #define I2C_ADDRESS 0x60 
-// #define KEYPAD_ADDRESS 0x20
-// #define DISPLAY_ADDRESS 0x3C
+//
+// #define I2C_ADDRESS 0x60
 #define SERVO_ADDRESS 0x40
 // #define EEPROM_ADDRESS 0x50
 #define STORAGE_ADDR 0x50  // 0x50 is the default address!
-#define STOR_WIRE Wire1     // make Wire1 or Wire
 
-#define SERVO_SDA  12    // for i2c0
-#define SERVO_SCL  13    // for i2c0
-#define SERVO_I2C i2c0 // (&i2c0_inst) ///< Identifier for I2C HW Block 
-// #define SERVO_SDA  10   // for i2c1
-// #define SERVO_SCL  11   // for i2c1
-// #define SERVO_I2C i2c1 // (&i2c1_inst) ///< Identifier for I2C HW Block 1
+// STOR_WIRE, I2C_SDA, I2C_SCL, SERVO_SDA, SERVO_SCL,
+// NeoPixel_Pin*, MCP2517_*, BLUE/GOLD_BUTTON_PIN
+// are all defined in the board_configs/BoardPins_*.h file selected above.
 
-#define I2C_SDA  26           // pin to use
-#define I2C_SCL  27           // pin to use
-// #define I2C2_SDA  10           // pin to use
-// #define I2C2_SCL  11           // pin to use
+// Servo I2C peripheral — always I2C0 on all Node board versions
+#define SERVO_I2C i2c0
 
 #define NumOfLights 2
 #define Light_A 10
@@ -90,76 +102,11 @@
 #define TT_DEBUG true  // uncomment for debug
 #define TT2_DEBUG true  // uncomment for debug
 
-//——————————————————————————————————————————————————————————————————————————————
-//  MCP2517 connections: adapt theses settings to your design
-//  As hardware SPI is used, you should select pins that support SPI functions.
-//  This code is designed to use SPI
-//  If standard SPI, SPI2 pins are not used then define them
-//    SCK input of MCP2517 is connected to pin #32
-//    SDI input of MCP2517 is connected to pin #0
-//    SDO output of MCP2517 is connected to pin #1
-//  CS input of MCP2517 should be connected to a digital output port
-//  INT output of MCP2517 should be connected to a digital input port, with interrupt capability
-
-#define MCP2517_SPI  SPI   // SPI port to use for MCP2517/8
-
-#define MCP2517_CS  17   // CS input of MCP2517/8
-#define MCP2517_INT 20  // INT output of MCP2517/8
-#define MCP2517_SCK 18  // SCK input of MCP2517/8
-#define MCP2517_SDI 19  // SI input of MCP2517/8
-#define MCP2517_SDO 16  // SO output of MCP2517/8
-
-/*
- *  This is the configuration file for the NeoPixel operation.
- */
-
-// Configureation settings
-
-// need to define number of all events in event table
-// #define NUM_EVENT 5
-
-
-// Servos
-#define NUM_SERVOS 10
-#define NUM_POS 2
-
-#define myPWMmin 104  // PWMmin	minimal PWM signal for the servo. This is not the minimal pulse width of the servo, but rather the pulse length count. Min and max values usually within (150-600) range.
-#define	myPWMmax 570  // PWMmax	maximal PWM signal for the servo. Just like the PWMmin, to be determined experimentally, by slowly raising the value and checking the motion range. 
-
-#define i_max_servo 10   // modify as desired, you can have 16 for each PCA9685
-#define SERVO_FREQ 60 // Analog servos run at ~50 Hz updates
-#define SERVO_SPEED 20
-#define START_POS 90
-#define SERVO_DURATION 1000000 // default time in microseconds for a servo to move from min to max position, used for constant speed movement
-
-#define MinServoRange -90
-#define MaxServoRange 90
-#define angleMinimum -90
-#define angleMaximum 90
-#define defultMinAngle -45
-#define defultMaxAngle 70
-#define inversion 1
-
-
-#define MAX_DOORS 16
-#define NUM_DOORS 10
-
-#define MAX_STRINGS 1
-#define MAX_LIGHTS 20
-#define NUM_DOOR_EVENTS 2 + MAX_DOORS  // OpenAll + CloseAll + one ToggleDoor per door
-#define NUM_LUM_EVENTS  5              // Interior, Exterior, HighLum, LowLum + spare
-#define NUM_EVENT NUM_DOOR_EVENTS + NUM_LUM_EVENTS
-
-#define NeoPixel_PinA 2        // (use any (mega 22-43) - 12 / 25) for the bridge / board interface
-#define NeoPixel_PinB 6        // (use any (mega 22-43) - 12 / 25) for the bridge / board interface
-#define NeoPixel_PinC 7        // (use any (mega 22-43) - 12 / 25) for the bridge / board interface
-#define NeoPixel_PinD 3        // (use any (mega 22-43) - 12 / 25) for the bridge / board interface
-
 // NeoPixel defines
-
+// NeoPixel_PinA/B/C/D are defined in the board header above.
 #define NeoPixel_PIO pio0
 const uint16_t PixelCount = 2; // number of NeoPixels in the string
-const uint8_t PixelPin = NeoPixel_PinA;  // pin for the data line, ignored for Esp8266
+const uint8_t PixelPin = NeoPixel_PinA;  // pin for the data line
 
 #define RedLevel 50   // bridge center
 #define BlueLevel 10  // bridge shack
@@ -169,11 +116,42 @@ const uint8_t PixelPin = NeoPixel_PinA;  // pin for the data line, ignored for E
 #define MAX_LUMINANCE 100
 #define DIM_LUMINANCE 35
 #define MIN_LUMINANCE 5
+
+#define MAX_STRINGS 1
+#define MAX_LIGHTS 20
 #define i_max_pixel MAX_STRINGS * MAX_LIGHTS     // number of pixel drivers in the daisy-chain
+
+// Servos
+#define NUM_SERVOS 10
+#define NUM_POS 2
+
+#define myPWMmin 104  // PWMmin  minimal PWM signal for the servo
+#define myPWMmax 570  // PWMmax  maximal PWM signal for the servo
+
+#define i_max_servo 10   // modify as desired, you can have 16 for each PCA9685
+#define SERVO_FREQ 60 // Analog servos run at ~50 Hz updates
+#define SERVO_SPEED 20
+#define START_POS 90
+#define SERVO_DURATION 1000000 // default time in microseconds for a servo to move from min to max position
+
+#define MinServoRange -90
+#define MaxServoRange 90
+#define angleMinimum -90
+#define angleMaximum 90
+#define defultMinAngle -45
+#define defultMaxAngle 70
+#define inversion 1
+
+#define MAX_DOORS 16
+#define NUM_DOORS 10
+
+#define NUM_DOOR_EVENTS 2 + MAX_DOORS  // OpenAll + CloseAll + one ToggleDoor per door
+#define NUM_LUM_EVENTS  5              // Interior, Exterior, HighLum, LowLum + spare
+#define NUM_EVENT NUM_DOOR_EVENTS + NUM_LUM_EVENTS
 
 /////////////////////////////////////////////////////////////////////////////////////
 //  Define the LED blink rates for fast and slow blinking in milliseconds.
-// 
+//
 //  The LED will alternative on/off for these durations.
 #define FREQUENCY 100
 
