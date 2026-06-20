@@ -2,12 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+See [../LCC_RPiPico_Common/LCC_NODE_STANDARD.md](../LCC_RPiPico_Common/LCC_NODE_STANDARD.md) for cross-project conventions (toolchain, board versioning, dual-core contract, CDI/EEPROM handling, naming). This file documents only what is specific to this node.
+
 ## Build Environment
 
 - **IDE**: Arduino IDE (primary) or VSCode with Arduino extension
 - **Board**: Raspberry Pi Pico 2 (`rp2040:rp2040:rpipico2`) using [Philhower's RP2040 package](https://github.com/earlephilhower/arduino-pico#installation) — NOT the Mbed package
 - **C++ Standard**: gnu++17
 - **Build config**: [sketch.yaml](sketch.yaml) (4MB flash, optimization: small)
+- **Board family/revision**: `NODE` family (`LCC_BOARD_NODE_V*` in `ProjectConfig.h`) — currently built against v2.5–v2.8; no `STEPPER`/legacy concerns apply to this project
 
 Required libraries (install via Arduino Library Manager):
 - `ACAN2517` by Pierre Molinaro — CAN transceiver (MCP2517/18)
@@ -54,6 +57,17 @@ Config is stored in external I2C EEPROM using a CDI (XML)-generated memory map:
 - [Documentation/openlcb-config-2026-01-30.xml](Documentation/openlcb-config-2026-01-30.xml) — CDI descriptor
 
 Config structures use `#pragma pack(push, 1)` for exact memory layout.
+
+**Protected NVM identity block** (standard §7.1) is implemented:
+`NodeIdentity.h`/`.cpp` read/write a 12-byte block above `CONFIG_MEM_SIZE`
+(now `32704`, down from `32768`, freeing 64 reserved bytes). On boot, if the
+block isn't provisioned, the node falls back to the legacy hardcoded
+`NODE_ID_DEFAULT` for that session and logs a warning — it does not halt.
+Provision a permanent ID with the serial `'N<12 hex digits>'` + `'Y'` confirm
+commands.
+
+`LCC_BOARD_NODE_V30` (generic v3.0 Node board) is now selectable in
+`ProjectConfig.h`.
 
 ### Key Data Flow
 

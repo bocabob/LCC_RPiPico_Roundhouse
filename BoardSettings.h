@@ -14,6 +14,17 @@
 #define ARDUINO_COMPATIBLE
 
 // --------------------------------------------
+//  Reserved sentinel values for board_configs/ headers.
+//  PWR_VCC/PWR_GND/PWR_AGND/PWR_VREF mark connector pins that carry power/
+//  ground rather than a GPIO signal. Must be defined before the board
+//  dispatch below since board_configs/BoardPins_Node_v30.h uses them.
+// --------------------------------------------
+#define PWR_VCC     126
+#define PWR_GND     125
+#define PWR_AGND    124
+#define PWR_VREF    123
+
+// --------------------------------------------
 //  Board hardware selection
 //  Set in ProjectConfig.h — do not define here or in individual .cpp files.
 // --------------------------------------------
@@ -25,8 +36,10 @@
   #include "board_configs/BoardPins_Node_v27.h"
 #elif defined(LCC_BOARD_NODE_V28)
   #include "board_configs/BoardPins_Node_v28.h"
+#elif defined(LCC_BOARD_NODE_V30)
+  #include "board_configs/BoardPins_Node_v30.h"
 #else
-  #error "No board version defined. Set LCC_BOARD_NODE_V25/V26/V27/V28 in ProjectConfig.h"
+  #error "No board version defined. Set LCC_BOARD_NODE_V25/V26/V27/V28/V30 in ProjectConfig.h"
 #endif
 
 // --------------------------------------------
@@ -48,7 +61,9 @@
 // Select ONE of these for Configuration Memory Size
 // --------------------------------------------
 //#define CONFIG_MEM_SIZE      65536
-#define CONFIG_MEM_SIZE      32768
+// 32768 minus 64 bytes reserved for the protected NVM region above config
+// memory (node identity block + headroom — see LCC_NODE_STANDARD.md §7.1)
+#define CONFIG_MEM_SIZE      32704
 //#define CONFIG_MEM_SIZE      16384
 //#define CONFIG_MEM_SIZE      8192
 //#define CONFIG_MEM_SIZE      4096

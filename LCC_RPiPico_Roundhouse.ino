@@ -34,6 +34,7 @@
 
 #include "Arduino.h"
 #include <Wire.h>
+#include <stdlib.h>
 #include <LibPrintf.h>
 
 #include "BoardSettings.h"
@@ -42,6 +43,7 @@
 #include "callbacks.h"
 #include "openlcb_user_config.h"
 #include "config_mem_helper.h"
+#include "NodeIdentity.h"
 
 #include "src/pico/rpi_pico_drivers.h"
 #include "src/pico/rpi_pico_can_drivers.h"
@@ -55,7 +57,10 @@
 #include "Roundhouse.h"
 #include "TTcomms.h"
 
-#define NODE_ID 0x050101019416      // 05 01 01 01 94 ** range assigned to Bob Gamble / Southern Piedmont
+// Fallback used only until the protected NVM identity block is provisioned
+// (see NodeIdentity.h / LCC_NODE_STANDARD.md §7.1). Provision a permanent ID
+// with the 'N' serial command rather than relying on this for new boards.
+#define NODE_ID_DEFAULT 0x050101019436      // 05 01 01 01 94 ** range assigned to Bob Gamble / Southern Piedmont
 
 static const can_config_t can_config = {
     .transmit_raw_can_frame  = &RPiPicoCanDriver_transmit_raw_can_frame,
@@ -177,7 +182,13 @@ void setup() {
 
   Serial.println("Creating Node.....");
 
-  OpenLcbUserConfig_node_id = OpenLcbConfig_create_node(NODE_ID, &OpenLcbUserConfig_node_parameters);
+  uint64_t node_id = NodeIdentity_read();
+  if (node_id == 0) {
+    Serial.println("*** Node identity not provisioned in protected NVM ***");
+    Serial.println("Using built-in default ID for this boot. Provision a permanent ID with 'N<12-hex-digit-id>' then 'Y' to confirm.");
+    node_id = NODE_ID_DEFAULT;
+  }
+  OpenLcbUserConfig_node_id = OpenLcbConfig_create_node(node_id, &OpenLcbUserConfig_node_parameters);
   // do this after initialization or the I2C will not be initialized
 
   _check_for_nvm_initialization();
@@ -242,6 +253,7 @@ void loop() {
         Serial.println("'m': Toggle Config Mem read/write Logging");
         Serial.println("'t': Display current time");
         Serial.println("'q': Query current time");
+        Serial.println("'N<12 hex digits>': Provision node identity, e.g. N050101019436 — confirm with 'Y'");
       break;
       case 'c':
         Serial.println("Setting NVM to 0x00...");
@@ -280,9 +292,37 @@ void loop() {
 
         // clock->is_running = true;
 
-        printf("Current time: %02d:%02d\n", clock->time.hour, clock->time.minute);  
+        printf("Current time: %02d:%02d\n", clock->time.hour, clock->time.minute);
       break;
-    };  
+      case 'N': {
+        char hexbuf[13];
+        size_t n = Serial.readBytesUntil('\n', hexbuf, 12);
+        if (n > 0 && hexbuf[n - 1] == '\r') n--;
+        hexbuf[n] = '\0';
+        if (n != 12) {
+          Serial.println("Usage: N<12 hex digits>, e.g. N050101019436");
+        } else {
+          uint64_t id = strtoull(hexbuf, NULL, 16);
+          NodeIdentity_begin_provision(id);
+          Serial.print("Confirm with 'Y' to write node ID 0x");
+          Serial.println(hexbuf);
+        }
+      }
+      break;
+      case 'Y':
+        if (NodeIdentity_provision_pending()) {
+          if (NodeIdentity_confirm_provision()) {
+            Serial.println("Node identity written. Rebooting...");
+            delay(100);
+            rp2040.reboot();
+          } else {
+            Serial.println("Failed to write node identity.");
+          }
+        } else {
+          Serial.println("No pending provisioning request.");
+        }
+      break;
+    };
   }
 
   RPiPicoCanDriver_process_receive();
