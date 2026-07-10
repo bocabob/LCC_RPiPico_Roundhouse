@@ -47,7 +47,15 @@ typedef struct{
     struct {
       char doorName[16];        // description of this Door
       char doorShort[5];        // short description of this Door
-      event_id_t ToggleDoor;       // producer Toggle door position eventID
+      event_id_t ToggleDoor;       // consumer/producer Toggle door position eventID (command in, echoed as a bare PC report out — carries no state polarity, see PAIRED-EVENT EXPERIMENT note)
+      // PAIRED-EVENT EXPERIMENT: ToggleDoor's own PC report cannot carry
+      // open/closed polarity (a bare PC Event Report has no valid/invalid
+      // bit — only a Producer/Consumer Identified message does). These two
+      // new producer-only events let Roundhouse report the CONFIRMED final
+      // state live, right when a move finishes, instead of relying solely
+      // on the login-time Identified handshake for ToggleDoor.
+      event_id_t DoorOpenConfirmed;    // producer: SET when this door is open, CLEAR otherwise
+      event_id_t DoorClosedConfirmed;  // producer: SET when this door is closed, CLEAR otherwise
       uint8_t  servo_min;   /* angle + 90; 0=−90°, 90=0°, 180=+90° */
       uint8_t  servo_max;   /* angle + 90 */
     } doors[MAX_DOORS];

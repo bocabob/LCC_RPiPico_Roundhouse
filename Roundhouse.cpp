@@ -463,12 +463,22 @@ void Roundhouse_send_pending_door_pcers()
 // so that consumers (e.g. the Turntable display) receive the confirmed final state.
 // The flag is cleared only on a successful send; if the TX buffer is full the flag
 // stays set and the send is retried on the next tick.
+//
+// PAIRED-EVENT EXPERIMENT: send whichever of DoorOpenConfirmed/DoorClosedConfirmed
+// matches the door's actual final state (producer_status[i], already set correctly
+// by SetServoStatus() in StopMoveHandler() before this flag is raised), instead of
+// the ambiguous bare ToggleDoor report — each event ID alone now conveys a definite
+// state, so a live PC Event Report of it is meaningful to a consumer, unlike a bare
+// PCER of ToggleDoor which carries no polarity at all.
 {
   for (int i = 0; i < ConfigMemHelper_config_data.attributes.DoorCount; i++) {
     if (_pending_door_pcer[i]) {
+      event_id_t confirmedEvent = (ConfigMemHelper_config_data.producer_status[i] == EVENT_STATUS_SET)
+          ? ConfigMemHelper_config_data.attributes.doors[i].DoorOpenConfirmed
+          : ConfigMemHelper_config_data.attributes.doors[i].DoorClosedConfirmed;
       if (OpenLcbApplication_send_event_pc_report(
               OpenLcbUserConfig_node_id,
-              swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].ToggleDoor))) {
+              swap_endian64(confirmedEvent))) {
         _pending_door_pcer[i] = false;
       }
     }

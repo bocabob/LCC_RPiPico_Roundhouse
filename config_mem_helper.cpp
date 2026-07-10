@@ -75,6 +75,8 @@ static void _load_defaults_attributes(openlcb_node_t *openlcb_node, config_mem_t
     strncpy(config->attributes.doors[d].doorName, door_name, sizeof(config->attributes.doors[d].doorName));
     strncpy(config->attributes.doors[d].doorShort, door_tag, sizeof(config->attributes.doors[d].doorShort));
     config->attributes.doors[d].ToggleDoor = swap_endian64((openlcb_node->id << 16) + *consumer_index); (*consumer_index)++; // EventID for toggle door
+    config->attributes.doors[d].DoorOpenConfirmed = swap_endian64((openlcb_node->id << 16) + *producer_index); (*producer_index)++; // EventID for confirmed-open state (PAIRED-EVENT EXPERIMENT)
+    config->attributes.doors[d].DoorClosedConfirmed = swap_endian64((openlcb_node->id << 16) + *producer_index); (*producer_index)++; // EventID for confirmed-closed state (PAIRED-EVENT EXPERIMENT)
     config->attributes.doors[d].servo_min = defultMinAngle + 90;  // -45+90 = 45
     config->attributes.doors[d].servo_max = defultMaxAngle + 90;  // 70+90  = 160
   }

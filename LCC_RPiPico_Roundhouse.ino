@@ -146,11 +146,28 @@ void _check_for_nvm_initialization(void) {
 
 }
 
+// PAIRED-EVENT EXPERIMENT: invert an EVENT_STATUS_ value (SET<->CLEAR), leaving
+// EVENT_STATUS_UNKNOWN as UNKNOWN. Used to derive DoorClosedConfirmed's initial
+// registered status as the logical opposite of producer_status[i] (which tracks
+// SET=open/CLEAR=closed).
+static event_status_enum _invert_event_status(event_status_enum s) {
+  if (s == EVENT_STATUS_SET) return EVENT_STATUS_CLEAR;
+  if (s == EVENT_STATUS_CLEAR) return EVENT_STATUS_SET;
+  return EVENT_STATUS_UNKNOWN;
+}
+
 void _register_producers(void) {
   // Register each door's ToggleDoor event as a producer so that the OpenLCB
   // stack will broadcast a "Producer Identified" message during LCB login,
   // carrying the NVM-restored open/closed state.  The Turntable node (and any
   // other node on the bus) will receive these messages to sync their displays.
+  //
+  // PAIRED-EVENT EXPERIMENT: also register DoorOpenConfirmed/DoorClosedConfirmed
+  // as producers, one SET and one CLEAR (mirrored from producer_status[i], which
+  // already tracks the door's real SET=open/CLEAR=closed state). These give
+  // Turntable two unambiguous events it can also receive live (not just at
+  // login) via a PC Event Report, since each event ID alone conveys a definite
+  // state — unlike ToggleDoor's bare "an event happened" report.
   OpenLcbApplication_clear_producer_eventids(OpenLcbUserConfig_node_id);
 
   for (int i = 0; i < ConfigMemHelper_config_data.attributes.DoorCount; i++) {
@@ -158,6 +175,14 @@ void _register_producers(void) {
         OpenLcbUserConfig_node_id,
         swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].ToggleDoor),
         ConfigMemHelper_config_data.producer_status[i]);  // NVM-restored SET/CLEAR/UNKNOWN
+    OpenLcbApplication_register_producer_eventid(
+        OpenLcbUserConfig_node_id,
+        swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].DoorOpenConfirmed),
+        ConfigMemHelper_config_data.producer_status[i]);
+    OpenLcbApplication_register_producer_eventid(
+        OpenLcbUserConfig_node_id,
+        swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].DoorClosedConfirmed),
+        _invert_event_status(ConfigMemHelper_config_data.producer_status[i]));
   }
 }
 
