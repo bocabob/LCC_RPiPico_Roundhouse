@@ -62,9 +62,8 @@
             <repname>D:1</repname>
             <string size='16'><name>Description</name></string>
             <string size='5'><name>Short Name</name></string>   
-            <eventid><name>Toggle Door (C)</name></eventid>
-            <eventid><name>Door Open Confirmed (P)</name><description>Sent when this door is confirmed open (PAIRED-EVENT EXPERIMENT)</description></eventid>
-            <eventid><name>Door Closed Confirmed (P)</name><description>Sent when this door is confirmed closed (PAIRED-EVENT EXPERIMENT)</description></eventid>
+            <eventid><name>Door Open (C+P)</name><description>Consumed: command to open. Produced: confirmed open. (PAIRED-EVENT EXPERIMENT v2)</description></eventid>
+            <eventid><name>Door Close (C+P)</name><description>Consumed: command to close. Produced: confirmed closed. (PAIRED-EVENT EXPERIMENT v2)</description></eventid>
             <int size="1">
                 <name>Servo Minimum Angle</name>
                 <description>Angular Position</description>

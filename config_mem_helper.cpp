@@ -74,9 +74,8 @@ static void _load_defaults_attributes(openlcb_node_t *openlcb_node, config_mem_t
   for (int d = 0; d < MAX_DOORS; d++) {
     strncpy(config->attributes.doors[d].doorName, door_name, sizeof(config->attributes.doors[d].doorName));
     strncpy(config->attributes.doors[d].doorShort, door_tag, sizeof(config->attributes.doors[d].doorShort));
-    config->attributes.doors[d].ToggleDoor = swap_endian64((openlcb_node->id << 16) + *consumer_index); (*consumer_index)++; // EventID for toggle door
-    config->attributes.doors[d].DoorOpenConfirmed = swap_endian64((openlcb_node->id << 16) + *producer_index); (*producer_index)++; // EventID for confirmed-open state (PAIRED-EVENT EXPERIMENT)
-    config->attributes.doors[d].DoorClosedConfirmed = swap_endian64((openlcb_node->id << 16) + *producer_index); (*producer_index)++; // EventID for confirmed-closed state (PAIRED-EVENT EXPERIMENT)
+    config->attributes.doors[d].DoorOpen = swap_endian64((openlcb_node->id << 16) + *consumer_index); (*consumer_index)++; // EventID for door open (command+confirm, PAIRED-EVENT EXPERIMENT v2)
+    config->attributes.doors[d].DoorClose = swap_endian64((openlcb_node->id << 16) + *consumer_index); (*consumer_index)++; // EventID for door close (command+confirm, PAIRED-EVENT EXPERIMENT v2)
     config->attributes.doors[d].servo_min = defultMinAngle + 90;  // -45+90 = 45
     config->attributes.doors[d].servo_max = defultMaxAngle + 90;  // 70+90  = 160
   }
@@ -90,7 +89,7 @@ static void _load_defaults_attributes(openlcb_node_t *openlcb_node, config_mem_t
 }
 
 static void _load_defaults_status(openlcb_node_t *openlcb_node, config_mem_t *config, uint16_t *consumer_index, uint16_t *producer_index) {
-  for (int i = 0; i < (2+ConfigMemHelper_config_data.attributes.DoorCount+4); i++) {
+  for (int i = 0; i < (2+2*ConfigMemHelper_config_data.attributes.DoorCount+4); i++) {
     config->consumer_status[i] = EVENT_STATUS_UNKNOWN; // Default event state is unknown (0)
   }
 
@@ -106,7 +105,7 @@ static void _load_defaults_application(openlcb_node_t *openlcb_node, config_mem_
 void Set_Application_Values_From_Config(openlcb_node_t *openlcb_node, config_mem_t *config) {
   // Sync consumer and producer event status from RAM config to the live node lists.
   // Called after a config read or write to keep the node in sync with NVM.
-  for (int i = 0; i < (2+ConfigMemHelper_config_data.attributes.DoorCount+4); i++) {
+  for (int i = 0; i < (2+2*ConfigMemHelper_config_data.attributes.DoorCount+4); i++) {
     openlcb_node->consumers.list[i].status = ConfigMemHelper_config_data.consumer_status[i];
   }
 

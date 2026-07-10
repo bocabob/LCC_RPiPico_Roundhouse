@@ -166,7 +166,7 @@ const uint8_t PixelPin = NeoPixel_PinA;  // pin for the data line
 #define MAX_DOORS 16
 #define NUM_DOORS 10
 
-#define NUM_DOOR_EVENTS 2 + MAX_DOORS  // OpenAll + CloseAll + one ToggleDoor per door
+#define NUM_DOOR_EVENTS 2 + 2*MAX_DOORS  // OpenAll + CloseAll + DoorOpen/DoorClose per door (PAIRED-EVENT EXPERIMENT v2; not referenced elsewhere, documentation only)
 #define NUM_LUM_EVENTS  5              // Interior, Exterior, HighLum, LowLum + spare
 #define NUM_EVENT NUM_DOOR_EVENTS + NUM_LUM_EVENTS
 

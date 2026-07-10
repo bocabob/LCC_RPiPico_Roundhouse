@@ -118,17 +118,21 @@ void RoundhouseCallback(uint16_t callin) {
         }
       }
       else {
-        if (index < 2 + ConfigMemHelper_config_data.attributes.DoorCount) { // if the event is a door event
-        uint8_t servoNum = index - 2; // get the servo number from the event index
-        // toggleDoor(servoNum);
-                if (Servos[servoNum].Status)
-                {              MoveServo(servoNum, 0);            }
-                else
-                {              MoveServo(servoNum, 1);            }
+        // PAIRED-EVENT EXPERIMENT v2: two consumer slots per door (DoorOpen,
+        // DoorClose) — command the explicit direction rather than toggling
+        // relative to Servos[].Status. A directional command is unambiguous
+        // regardless of what Roundhouse currently believes the door's state
+        // to be, unlike the old toggle-relative-to-tracked-status approach.
+        int doorEventCount = ConfigMemHelper_config_data.attributes.DoorCount * 2;
+        if (index < 2 + doorEventCount) { // if the event is a door event
+        int doorSlot = index - 2;
+        uint8_t servoNum = doorSlot / 2;
+        bool isOpenEvent = (doorSlot % 2) == 0;  // even slot = DoorOpen, odd = DoorClose
+        MoveServo(servoNum, isOpenEvent ? 1 : 0);
         }
         else {
-        index = index - (2 + ConfigMemHelper_config_data.attributes.DoorCount); // adjust the index to account for the door events
-        switch (index) { //, , , , 
+        index = index - (2 + doorEventCount); // adjust the index to account for the door events
+        switch (index) { //, , , ,
           case 0:  //        
           ToggleLight(0);
           break;
@@ -464,18 +468,18 @@ void Roundhouse_send_pending_door_pcers()
 // The flag is cleared only on a successful send; if the TX buffer is full the flag
 // stays set and the send is retried on the next tick.
 //
-// PAIRED-EVENT EXPERIMENT: send whichever of DoorOpenConfirmed/DoorClosedConfirmed
-// matches the door's actual final state (producer_status[i], already set correctly
-// by SetServoStatus() in StopMoveHandler() before this flag is raised), instead of
-// the ambiguous bare ToggleDoor report — each event ID alone now conveys a definite
-// state, so a live PC Event Report of it is meaningful to a consumer, unlike a bare
-// PCER of ToggleDoor which carries no polarity at all.
+// PAIRED-EVENT EXPERIMENT v2: send whichever of DoorOpen/DoorClose matches the
+// door's actual final state (producer_status[i], already set correctly by
+// SetServoStatus() in StopMoveHandler() before this flag is raised). Each event
+// ID alone conveys a definite state, so a live PC Event Report of it is
+// meaningful to a consumer — this is the same event used to command the door,
+// now doubling as its own confirmation once the commanded move completes.
 {
   for (int i = 0; i < ConfigMemHelper_config_data.attributes.DoorCount; i++) {
     if (_pending_door_pcer[i]) {
       event_id_t confirmedEvent = (ConfigMemHelper_config_data.producer_status[i] == EVENT_STATUS_SET)
-          ? ConfigMemHelper_config_data.attributes.doors[i].DoorOpenConfirmed
-          : ConfigMemHelper_config_data.attributes.doors[i].DoorClosedConfirmed;
+          ? ConfigMemHelper_config_data.attributes.doors[i].DoorOpen
+          : ConfigMemHelper_config_data.attributes.doors[i].DoorClose;
       if (OpenLcbApplication_send_event_pc_report(
               OpenLcbUserConfig_node_id,
               swap_endian64(confirmedEvent))) {

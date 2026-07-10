@@ -146,10 +146,10 @@ void _check_for_nvm_initialization(void) {
 
 }
 
-// PAIRED-EVENT EXPERIMENT: invert an EVENT_STATUS_ value (SET<->CLEAR), leaving
-// EVENT_STATUS_UNKNOWN as UNKNOWN. Used to derive DoorClosedConfirmed's initial
-// registered status as the logical opposite of producer_status[i] (which tracks
-// SET=open/CLEAR=closed).
+// PAIRED-EVENT EXPERIMENT v2: invert an EVENT_STATUS_ value (SET<->CLEAR),
+// leaving EVENT_STATUS_UNKNOWN as UNKNOWN. Used to derive DoorClose's initial
+// registered producer status as the logical opposite of producer_status[i]
+// (which tracks SET=open/CLEAR=closed).
 static event_status_enum _invert_event_status(event_status_enum s) {
   if (s == EVENT_STATUS_SET) return EVENT_STATUS_CLEAR;
   if (s == EVENT_STATUS_CLEAR) return EVENT_STATUS_SET;
@@ -157,31 +157,24 @@ static event_status_enum _invert_event_status(event_status_enum s) {
 }
 
 void _register_producers(void) {
-  // Register each door's ToggleDoor event as a producer so that the OpenLCB
-  // stack will broadcast a "Producer Identified" message during LCB login,
-  // carrying the NVM-restored open/closed state.  The Turntable node (and any
-  // other node on the bus) will receive these messages to sync their displays.
-  //
-  // PAIRED-EVENT EXPERIMENT: also register DoorOpenConfirmed/DoorClosedConfirmed
-  // as producers, one SET and one CLEAR (mirrored from producer_status[i], which
-  // already tracks the door's real SET=open/CLEAR=closed state). These give
-  // Turntable two unambiguous events it can also receive live (not just at
-  // login) via a PC Event Report, since each event ID alone conveys a definite
-  // state — unlike ToggleDoor's bare "an event happened" report.
+  // PAIRED-EVENT EXPERIMENT v2: DoorOpen/DoorClose replace ToggleDoor plus the
+  // separate DoorOpenConfirmed/DoorClosedConfirmed pair. Each is registered as
+  // BOTH a producer (to report the door's actual confirmed state) and a
+  // consumer (see _register_consumers() below, to receive the command) — the
+  // standard OpenLCB command+feedback pattern. Producer status here mirrors
+  // producer_status[i] (already tracked as SET=open/CLEAR=closed), so the
+  // login-time Producer Identified broadcast carries the real NVM-restored
+  // state for whichever event matches it.
   OpenLcbApplication_clear_producer_eventids(OpenLcbUserConfig_node_id);
 
   for (int i = 0; i < ConfigMemHelper_config_data.attributes.DoorCount; i++) {
     OpenLcbApplication_register_producer_eventid(
         OpenLcbUserConfig_node_id,
-        swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].ToggleDoor),
-        ConfigMemHelper_config_data.producer_status[i]);  // NVM-restored SET/CLEAR/UNKNOWN
-    OpenLcbApplication_register_producer_eventid(
-        OpenLcbUserConfig_node_id,
-        swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].DoorOpenConfirmed),
+        swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].DoorOpen),
         ConfigMemHelper_config_data.producer_status[i]);
     OpenLcbApplication_register_producer_eventid(
         OpenLcbUserConfig_node_id,
-        swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].DoorClosedConfirmed),
+        swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].DoorClose),
         _invert_event_status(ConfigMemHelper_config_data.producer_status[i]));
   }
 }
@@ -193,16 +186,21 @@ void _register_consumers(void) {
   OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.OpenAll), ConfigMemHelper_config_data.consumer_status[index++]);  // need to read the state from the NVM to know if it is on/off/unknown when registering the consumer event ID
   OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.CloseAll), ConfigMemHelper_config_data.consumer_status[index++]);
 
+  // PAIRED-EVENT EXPERIMENT v2: two consumer slots per door (DoorOpen, DoorClose)
+  // instead of one (ToggleDoor) — RoundhouseCallback() below now acts on an
+  // explicit, unambiguous direction rather than toggling relative to
+  // (possibly stale) Servos[].Status.
   for (int i = 0; i < ConfigMemHelper_config_data.attributes.DoorCount; i++) {
-     OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].ToggleDoor), ConfigMemHelper_config_data.consumer_status[index++]);  // need to read the state from the NVM to know if it is on/off/unknown when registering the consumer event ID
+     OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].DoorOpen), ConfigMemHelper_config_data.consumer_status[index++]);
+     OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].DoorClose), ConfigMemHelper_config_data.consumer_status[index++]);
   }
-  
+
   OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.ToggleInterior), ConfigMemHelper_config_data.consumer_status[index++]);
   OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.ToggleExterior), ConfigMemHelper_config_data.consumer_status[index++]);
   OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.HighLuminosity_On), ConfigMemHelper_config_data.consumer_status[index++]);
   OpenLcbApplication_register_consumer_eventid(OpenLcbUserConfig_node_id, swap_endian64(ConfigMemHelper_config_data.attributes.LowLuminosity_On), ConfigMemHelper_config_data.consumer_status[index++]);
-  
-  
+
+
 }
 
 bool node_initiated = false;
