@@ -1,19 +1,34 @@
 /*
- * Physical pin topology for LCC RPi Pico Node board v3.0
+ * Pin definitions for LCC RPi Pico Node board v3.0
  *
  * Do not include this file directly — it is selected automatically
  * by BoardSettings.h based on the LCC_BOARD_NODE_V30 define in ProjectConfig.h.
  *
- * This file describes PHYSICAL connector layout only.
- * Functional assignments (display, touch, stepper, NeoPixel, buttons, etc.)
- * depend on which breakout is attached — see NodeConfig.h (this project) and
- * LCC_NODE_STANDARD.md §3 / §6.1 in LCC_RPiPico_Common.
+ * Unlike LCC_RPiPico_Turntable/PixelLights/Clock_Lights, this project has no
+ * separate NodeConfig.h — functional assignments (NeoPixel, servo I2C,
+ * buttons) live directly in this file, same pattern as the v2.5-v2.8 board
+ * headers below. See BoardSettings.h's comment block for the full list of
+ * macros this file is expected to define.
  *
  * Connector layout — 10-pin IDC (IO1, IO2):
  *   Pins 1-4  signal | Pin 5 GND | Pin 6 Vselect (jumper-selectable 3.3V/5V) | Pins 7-10 signal
  *
  * IO3 is a 5-pin analog header:
  *   Pin 1-2 signal | Pin 3 AGND | Pin 4 VREF | Pin 5 signal
+ *
+ * v3.0 layout — Roundhouse breakout on I/O-1 (jumper-selectable connector;
+ * I/O-2 would work identically, I/O-1 was chosen to leave I/O-2 free):
+ *   NeoPixel outputs : gp8-11 (I/O-1 pins 1-4) — RESERVED for a future NeoPixel
+ *                      lighting upgrade; not yet used by any firmware in this
+ *                      project (see NPlights-less Roundhouse.cpp) but the pins
+ *                      are physically dedicated on the breakout so nothing
+ *                      else should claim them.
+ *   I2C0 for servo   : gp12 (SDA) / gp13 (SCL) — I/O-1 pins 7/8
+ *   LEDs             : gp14 (Light_A) / gp15 (Light_B) — I/O-1 pins 9/10
+ *   I2C1 for storage : gp6 (SDA) / gp7 (SCL) — Wire1 (fixed-function, not on any connector)
+ *   CAN (SPI0)       : SDO=gp0, CS=gp1, SCK=gp2, SDI=gp3, INT=gp4 (fixed-function)
+ *   Buttons          : Blue=gp5 (I/O-2:Pin10), Gold=gp28 (I/O-3:Pin5) — moved
+ *                      from v2.8's gp21/gp22; see LCC_NODE_STANDARD.md §3 / §6.1
  *
  * Changes from v2.9:
  *   - IO2_PIN10 moved from gp26 to gp5 (gp5 was a standalone header pin on
@@ -91,5 +106,28 @@
 #define MCP2517_SCK   2
 #define MCP2517_SDI   3   // MOSI (ACAN_TX_PIN)
 #define MCP2517_INT   4
+
+// --------------------------------------------
+//  Roundhouse breakout on I/O-1 — functional pin assignments
+//  Node board defines available physical resources (above); the breakout
+//  plugged into I/O-1 determines what each pin is actually used for.
+// --------------------------------------------
+
+// NeoPixel outputs — RESERVED for a future NeoPixel lighting upgrade.
+// Not yet wired up in firmware (Roundhouse.cpp has no NeoPixel code today),
+// but these four physical pins are spoken for on the breakout, so nothing
+// else should be assigned here.
+#define NeoPixel_PinA   IO1_PIN1   // gp8
+#define NeoPixel_PinB   IO1_PIN2   // gp9
+#define NeoPixel_PinC   IO1_PIN3   // gp10
+#define NeoPixel_PinD   IO1_PIN4   // gp11
+
+// I2C0 — servo controller (PCA9685)
+#define SERVO_SDA   IO1_PIN7   // gp12
+#define SERVO_SCL   IO1_PIN8   // gp13
+
+// LEDs
+#define Light_A     IO1_PIN9    // gp14
+#define Light_B     IO1_PIN10   // gp15
 
 #endif  // BOARDPINS_NODE_V30_H

@@ -151,12 +151,30 @@ void RoundhouseCallback(uint16_t callin) {
 void init_servo(PCA9685_servo& servo, uint8_t mode, int8_t minRange, int8_t maxRange, int8_t position, uint8_t address, uint64_t TConstDur)
 {
     servo.setRange(minRange, maxRange);
-    servo.setMode(mode);
-    servo.setPosition(position); // move to mid point
     servo.setAddress(address);
     servo.setTConstantDuration(TConstDur);
     servo.setAngularVelocity(ConfigMemHelper_config_data.attributes.DoorSpeed);
     servo.setInvertMode(inversion);
+
+    // Snap to the last-known position with no animated sweep before switching
+    // to the configured runtime mode. PCA9685_servo::setPosition() always
+    // animates from _currentAngle, which defaults to 0 on every boot — in
+    // MODE_SCONSTANT/MODE_TCONSTANT that produced a visible sweep from 0 to
+    // `position` on every power-on/reset, even though the servo is already
+    // physically sitting at `position`. MODE_FAST writes the PWM value for
+    // `position` immediately (no ramp) and sets _currentAngle directly, so
+    // there is nothing to animate away from.
+    servo.setMode(MODE_FAST);
+    servo.setPosition(position);
+    // setPosition() leaves _isMoving=1 (MODE_FAST always sets it, to be
+    // cleared later by loop()'s own timing check). stop() sets
+    // _targetAngle = _currentAngle so that once we switch to the real
+    // runtime mode below, loop()'s "have we arrived?" check
+    // (_currentAngle == _targetAngle) is satisfied on its very first tick —
+    // without this, the stale _targetAngle (0, never set by MODE_FAST) would
+    // make loop() immediately animate the servo right back down to 0.
+    servo.stop();
+    servo.setMode(mode);
     // NOTE: We do NOT assign onStartMove / onStopMove here.
     // The PCA9685_servo library always passes address 0 to these callbacks
     // regardless of which servo completed, so they cannot be used to identify

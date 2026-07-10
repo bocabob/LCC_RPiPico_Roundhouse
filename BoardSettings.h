@@ -57,23 +57,6 @@
 
 // --------------------------------------------
 
-// -------------------------------------------
-// Select ONE of these for Configuration Memory Size
-// --------------------------------------------
-//#define CONFIG_MEM_SIZE      65536
-// 32768 minus 64 bytes reserved for the protected NVM region above config
-// memory (node identity block + headroom — see LCC_NODE_STANDARD.md §7.1)
-#define CONFIG_MEM_SIZE      32704
-//#define CONFIG_MEM_SIZE      16384
-//#define CONFIG_MEM_SIZE      8192
-//#define CONFIG_MEM_SIZE      4096
-//#define CONFIG_MEM_SIZE      2048
-//#define CONFIG_MEM_SIZE      1024
-//#define CONFIG_MEM_SIZE      512
-//#define CONFIG_MEM_SIZE      256
-//#define CONFIG_MEM_SIZE      128
-// --------------------------------------------
-
 // Define the size of the EEPROM chip or use 4096 if using emulated internal flash storage
 // #define I2C_DEVICESIZE      65536  // 24LC512
 #define I2C_DEVICESIZE      32768  // 24LC256
@@ -85,6 +68,22 @@
 // #define I2C_DEVICESIZE        512  // 24LC04
 // #define I2C_DEVICESIZE        256  // 24LC02
 // #define I2C_DEVICESIZE        128  // 24LC01
+
+// -------------------------------------------
+// Configuration Memory Size — derived from I2C_DEVICESIZE above
+// --------------------------------------------
+// subtract 64 bytes reserved for the protected NVM region above config
+// memory (node identity block + headroom — see LCC_NODE_STANDARD.md §7.1)
+// Parenthesized deliberately: unparenthesized "I2C_DEVICESIZE-64" expands
+// wrong wherever CONFIG_MEM_SIZE is used in a division, e.g.
+// "CONFIG_MEM_SIZE / sizeof(buffer)" becomes "I2C_DEVICESIZE-64 / sizeof(buffer)"
+// = I2C_DEVICESIZE - (64/sizeof(buffer)), not (I2C_DEVICESIZE-64) / sizeof(buffer).
+// Found 2026-06-28 (LCC_RPiPico_Turntable): this silently made
+// ConfigMemHelper_reset_config_mem()/_clear_config_mem() ('r'/'c' commands)
+// loop ~32767 times instead of 511, hammering the same clamped address with
+// rapid-fire writes and producing consistent I2C Wire timeouts (error code 5).
+#define CONFIG_MEM_SIZE      (I2C_DEVICESIZE-64)
+// --------------------------------------------
 
 /////////////////////////////////////////////////////////////////////////////////////
 //  Define a valid (and free) I2C address, 0x60 is the default.
@@ -102,8 +101,15 @@
 #define SERVO_I2C i2c0
 
 #define NumOfLights 2
-#define Light_A 10
-#define Light_B 11
+// Light_A/Light_B: v3.0's board header now defines these itself (breakout-
+// determined, see BoardPins_Node_v30.h). v2.5-v2.8 never had a per-board
+// definition, so fall back to the original fixed pins for those versions.
+#ifndef Light_A
+  #define Light_A 10
+#endif
+#ifndef Light_B
+  #define Light_B 11
+#endif
 
 #define UNUSED_PIN 127
 
