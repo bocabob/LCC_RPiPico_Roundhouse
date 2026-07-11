@@ -390,26 +390,41 @@ void SetServoStatus(int i, int status)
 //   2 = in motion / unknown
 {
   if (i > (MAX_DOORS - 1)) return;
+  // PAIRED-EVENT EXPERIMENT v2 fix: consumer slots are 2 per door
+  // (2+2*i = DoorOpen, 2+2*i+1 = DoorClose) since the redesign from the old
+  // 1-slot-per-door ToggleDoor scheme — "i+2" was the old (now-wrong) offset.
+  // DoorClose's consumer status mirrors DoorOpen's (inverted), matching the
+  // same producer-status mirroring _register_producers() already does via
+  // _invert_event_status(): each event's status reflects whether its own
+  // specific condition (open, or closed) currently holds.
+  uint16_t doorOpenConsumerIdx  = 2 + 2*i;
+  uint16_t doorCloseConsumerIdx = 2 + 2*i + 1;
   switch (status)
   {
   case 0:
     /* closed */
-    OpenLcbUserConfig_node_id->consumers.list[i+2].status = EVENT_STATUS_CLEAR;
-    ConfigMemHelper_config_data.consumer_status[i+2] = EVENT_STATUS_CLEAR;
+    OpenLcbUserConfig_node_id->consumers.list[doorOpenConsumerIdx].status = EVENT_STATUS_CLEAR;
+    ConfigMemHelper_config_data.consumer_status[doorOpenConsumerIdx] = EVENT_STATUS_CLEAR;
+    OpenLcbUserConfig_node_id->consumers.list[doorCloseConsumerIdx].status = EVENT_STATUS_SET;
+    ConfigMemHelper_config_data.consumer_status[doorCloseConsumerIdx] = EVENT_STATUS_SET;
     OpenLcbUserConfig_node_id->producers.list[i].status = EVENT_STATUS_CLEAR;
     ConfigMemHelper_config_data.producer_status[i] = EVENT_STATUS_CLEAR;
     break;
   case 1:
     /* open */
-    OpenLcbUserConfig_node_id->consumers.list[i+2].status = EVENT_STATUS_SET;
-    ConfigMemHelper_config_data.consumer_status[i+2] = EVENT_STATUS_SET;
+    OpenLcbUserConfig_node_id->consumers.list[doorOpenConsumerIdx].status = EVENT_STATUS_SET;
+    ConfigMemHelper_config_data.consumer_status[doorOpenConsumerIdx] = EVENT_STATUS_SET;
+    OpenLcbUserConfig_node_id->consumers.list[doorCloseConsumerIdx].status = EVENT_STATUS_CLEAR;
+    ConfigMemHelper_config_data.consumer_status[doorCloseConsumerIdx] = EVENT_STATUS_CLEAR;
     OpenLcbUserConfig_node_id->producers.list[i].status = EVENT_STATUS_SET;
     ConfigMemHelper_config_data.producer_status[i] = EVENT_STATUS_SET;
     break;
   case 2:
     /* in motion – consumer side goes UNKNOWN; producer stays at last known state */
-    OpenLcbUserConfig_node_id->consumers.list[i+2].status = EVENT_STATUS_UNKNOWN;
-    ConfigMemHelper_config_data.consumer_status[i+2] = EVENT_STATUS_UNKNOWN;
+    OpenLcbUserConfig_node_id->consumers.list[doorOpenConsumerIdx].status = EVENT_STATUS_UNKNOWN;
+    ConfigMemHelper_config_data.consumer_status[doorOpenConsumerIdx] = EVENT_STATUS_UNKNOWN;
+    OpenLcbUserConfig_node_id->consumers.list[doorCloseConsumerIdx].status = EVENT_STATUS_UNKNOWN;
+    ConfigMemHelper_config_data.consumer_status[doorCloseConsumerIdx] = EVENT_STATUS_UNKNOWN;
     break;
 
   default:
@@ -441,20 +456,29 @@ void setServoDefaults()
 
   for (int i = 0; i < MAX_DOORS; i++) {
     int nvmStatus = ConfigMemHelper_config_data.Servos[i].Status;
+    // PAIRED-EVENT EXPERIMENT v2 fix: consumer slots are 2 per door
+    // (2+2*i = DoorOpen, 2+2*i+1 = DoorClose) — "i+2" was the old, now-wrong
+    // 1-slot-per-door offset. DoorClose mirrors DoorOpen (inverted), matching
+    // SetServoStatus()'s convention below.
+    uint16_t doorOpenConsumerIdx  = 2 + 2*i;
+    uint16_t doorCloseConsumerIdx = 2 + 2*i + 1;
     if (nvmStatus == 0 || nvmStatus == 1) {
       // Valid NVM state – restore servo position and sync RAM status arrays
       Servos[i].Status   = ConfigMemHelper_config_data.Servos[i].Status;
       Servos[i].Position = ConfigMemHelper_config_data.Servos[i].Position;
       Servos[i].ServoMin = ConfigMemHelper_config_data.Servos[i].ServoMin;
       Servos[i].ServoMax = ConfigMemHelper_config_data.Servos[i].ServoMax;
-      event_status_enum ev = (nvmStatus == 1) ? EVENT_STATUS_SET : EVENT_STATUS_CLEAR;
-      ConfigMemHelper_config_data.consumer_status[i + 2] = ev;
+      event_status_enum ev        = (nvmStatus == 1) ? EVENT_STATUS_SET   : EVENT_STATUS_CLEAR;
+      event_status_enum evInverse = (nvmStatus == 1) ? EVENT_STATUS_CLEAR : EVENT_STATUS_SET;
+      ConfigMemHelper_config_data.consumer_status[doorOpenConsumerIdx]  = ev;
+      ConfigMemHelper_config_data.consumer_status[doorCloseConsumerIdx] = evInverse;
       ConfigMemHelper_config_data.producer_status[i]     = ev;
     } else {
       // NVM not yet initialised – default to closed (servo_min)
       Servos[i].Status   = 0;
       Servos[i].Position = (int8_t)(ConfigMemHelper_config_data.attributes.doors[i].servo_min - 90);
-      ConfigMemHelper_config_data.consumer_status[i + 2] = EVENT_STATUS_CLEAR;
+      ConfigMemHelper_config_data.consumer_status[doorOpenConsumerIdx]  = EVENT_STATUS_CLEAR;
+      ConfigMemHelper_config_data.consumer_status[doorCloseConsumerIdx] = EVENT_STATUS_SET;
       ConfigMemHelper_config_data.producer_status[i]     = EVENT_STATUS_CLEAR;
     }
   }
