@@ -118,17 +118,21 @@ void RoundhouseCallback(uint16_t callin) {
         }
       }
       else {
-        if (index < 2 + ConfigMemHelper_config_data.attributes.DoorCount) { // if the event is a door event
-        uint8_t servoNum = index - 2; // get the servo number from the event index
-        // toggleDoor(servoNum);
-                if (Servos[servoNum].Status)
-                {              MoveServo(servoNum, 0);            }
-                else
-                {              MoveServo(servoNum, 1);            }
+        // PAIRED-EVENT EXPERIMENT v2: two consumer slots per door (DoorOpen,
+        // DoorClose) — command the explicit direction rather than toggling
+        // relative to Servos[].Status. A directional command is unambiguous
+        // regardless of what Roundhouse currently believes the door's state
+        // to be, unlike the old toggle-relative-to-tracked-status approach.
+        int doorEventCount = ConfigMemHelper_config_data.attributes.DoorCount * 2;
+        if (index < 2 + doorEventCount) { // if the event is a door event
+        int doorSlot = index - 2;
+        uint8_t servoNum = doorSlot / 2;
+        bool isOpenEvent = (doorSlot % 2) == 0;  // even slot = DoorOpen, odd = DoorClose
+        MoveServo(servoNum, isOpenEvent ? 1 : 0);
         }
         else {
-        index = index - (2 + ConfigMemHelper_config_data.attributes.DoorCount); // adjust the index to account for the door events
-        switch (index) { //, , , , 
+        index = index - (2 + doorEventCount); // adjust the index to account for the door events
+        switch (index) { //, , , ,
           case 0:  //        
           ToggleLight(0);
           break;
@@ -386,26 +390,41 @@ void SetServoStatus(int i, int status)
 //   2 = in motion / unknown
 {
   if (i > (MAX_DOORS - 1)) return;
+  // PAIRED-EVENT EXPERIMENT v2 fix: consumer slots are 2 per door
+  // (2+2*i = DoorOpen, 2+2*i+1 = DoorClose) since the redesign from the old
+  // 1-slot-per-door ToggleDoor scheme — "i+2" was the old (now-wrong) offset.
+  // DoorClose's consumer status mirrors DoorOpen's (inverted), matching the
+  // same producer-status mirroring _register_producers() already does via
+  // _invert_event_status(): each event's status reflects whether its own
+  // specific condition (open, or closed) currently holds.
+  uint16_t doorOpenConsumerIdx  = 2 + 2*i;
+  uint16_t doorCloseConsumerIdx = 2 + 2*i + 1;
   switch (status)
   {
   case 0:
     /* closed */
-    OpenLcbUserConfig_node_id->consumers.list[i+2].status = EVENT_STATUS_CLEAR;
-    ConfigMemHelper_config_data.consumer_status[i+2] = EVENT_STATUS_CLEAR;
+    OpenLcbUserConfig_node_id->consumers.list[doorOpenConsumerIdx].status = EVENT_STATUS_CLEAR;
+    ConfigMemHelper_config_data.consumer_status[doorOpenConsumerIdx] = EVENT_STATUS_CLEAR;
+    OpenLcbUserConfig_node_id->consumers.list[doorCloseConsumerIdx].status = EVENT_STATUS_SET;
+    ConfigMemHelper_config_data.consumer_status[doorCloseConsumerIdx] = EVENT_STATUS_SET;
     OpenLcbUserConfig_node_id->producers.list[i].status = EVENT_STATUS_CLEAR;
     ConfigMemHelper_config_data.producer_status[i] = EVENT_STATUS_CLEAR;
     break;
   case 1:
     /* open */
-    OpenLcbUserConfig_node_id->consumers.list[i+2].status = EVENT_STATUS_SET;
-    ConfigMemHelper_config_data.consumer_status[i+2] = EVENT_STATUS_SET;
+    OpenLcbUserConfig_node_id->consumers.list[doorOpenConsumerIdx].status = EVENT_STATUS_SET;
+    ConfigMemHelper_config_data.consumer_status[doorOpenConsumerIdx] = EVENT_STATUS_SET;
+    OpenLcbUserConfig_node_id->consumers.list[doorCloseConsumerIdx].status = EVENT_STATUS_CLEAR;
+    ConfigMemHelper_config_data.consumer_status[doorCloseConsumerIdx] = EVENT_STATUS_CLEAR;
     OpenLcbUserConfig_node_id->producers.list[i].status = EVENT_STATUS_SET;
     ConfigMemHelper_config_data.producer_status[i] = EVENT_STATUS_SET;
     break;
   case 2:
     /* in motion – consumer side goes UNKNOWN; producer stays at last known state */
-    OpenLcbUserConfig_node_id->consumers.list[i+2].status = EVENT_STATUS_UNKNOWN;
-    ConfigMemHelper_config_data.consumer_status[i+2] = EVENT_STATUS_UNKNOWN;
+    OpenLcbUserConfig_node_id->consumers.list[doorOpenConsumerIdx].status = EVENT_STATUS_UNKNOWN;
+    ConfigMemHelper_config_data.consumer_status[doorOpenConsumerIdx] = EVENT_STATUS_UNKNOWN;
+    OpenLcbUserConfig_node_id->consumers.list[doorCloseConsumerIdx].status = EVENT_STATUS_UNKNOWN;
+    ConfigMemHelper_config_data.consumer_status[doorCloseConsumerIdx] = EVENT_STATUS_UNKNOWN;
     break;
 
   default:
@@ -437,20 +456,29 @@ void setServoDefaults()
 
   for (int i = 0; i < MAX_DOORS; i++) {
     int nvmStatus = ConfigMemHelper_config_data.Servos[i].Status;
+    // PAIRED-EVENT EXPERIMENT v2 fix: consumer slots are 2 per door
+    // (2+2*i = DoorOpen, 2+2*i+1 = DoorClose) — "i+2" was the old, now-wrong
+    // 1-slot-per-door offset. DoorClose mirrors DoorOpen (inverted), matching
+    // SetServoStatus()'s convention below.
+    uint16_t doorOpenConsumerIdx  = 2 + 2*i;
+    uint16_t doorCloseConsumerIdx = 2 + 2*i + 1;
     if (nvmStatus == 0 || nvmStatus == 1) {
       // Valid NVM state – restore servo position and sync RAM status arrays
       Servos[i].Status   = ConfigMemHelper_config_data.Servos[i].Status;
       Servos[i].Position = ConfigMemHelper_config_data.Servos[i].Position;
       Servos[i].ServoMin = ConfigMemHelper_config_data.Servos[i].ServoMin;
       Servos[i].ServoMax = ConfigMemHelper_config_data.Servos[i].ServoMax;
-      event_status_enum ev = (nvmStatus == 1) ? EVENT_STATUS_SET : EVENT_STATUS_CLEAR;
-      ConfigMemHelper_config_data.consumer_status[i + 2] = ev;
+      event_status_enum ev        = (nvmStatus == 1) ? EVENT_STATUS_SET   : EVENT_STATUS_CLEAR;
+      event_status_enum evInverse = (nvmStatus == 1) ? EVENT_STATUS_CLEAR : EVENT_STATUS_SET;
+      ConfigMemHelper_config_data.consumer_status[doorOpenConsumerIdx]  = ev;
+      ConfigMemHelper_config_data.consumer_status[doorCloseConsumerIdx] = evInverse;
       ConfigMemHelper_config_data.producer_status[i]     = ev;
     } else {
       // NVM not yet initialised – default to closed (servo_min)
       Servos[i].Status   = 0;
       Servos[i].Position = (int8_t)(ConfigMemHelper_config_data.attributes.doors[i].servo_min - 90);
-      ConfigMemHelper_config_data.consumer_status[i + 2] = EVENT_STATUS_CLEAR;
+      ConfigMemHelper_config_data.consumer_status[doorOpenConsumerIdx]  = EVENT_STATUS_CLEAR;
+      ConfigMemHelper_config_data.consumer_status[doorCloseConsumerIdx] = EVENT_STATUS_SET;
       ConfigMemHelper_config_data.producer_status[i]     = EVENT_STATUS_CLEAR;
     }
   }
@@ -463,12 +491,22 @@ void Roundhouse_send_pending_door_pcers()
 // so that consumers (e.g. the Turntable display) receive the confirmed final state.
 // The flag is cleared only on a successful send; if the TX buffer is full the flag
 // stays set and the send is retried on the next tick.
+//
+// PAIRED-EVENT EXPERIMENT v2: send whichever of DoorOpen/DoorClose matches the
+// door's actual final state (producer_status[i], already set correctly by
+// SetServoStatus() in StopMoveHandler() before this flag is raised). Each event
+// ID alone conveys a definite state, so a live PC Event Report of it is
+// meaningful to a consumer — this is the same event used to command the door,
+// now doubling as its own confirmation once the commanded move completes.
 {
   for (int i = 0; i < ConfigMemHelper_config_data.attributes.DoorCount; i++) {
     if (_pending_door_pcer[i]) {
+      event_id_t confirmedEvent = (ConfigMemHelper_config_data.producer_status[i] == EVENT_STATUS_SET)
+          ? ConfigMemHelper_config_data.attributes.doors[i].DoorOpen
+          : ConfigMemHelper_config_data.attributes.doors[i].DoorClose;
       if (OpenLcbApplication_send_event_pc_report(
               OpenLcbUserConfig_node_id,
-              swap_endian64(ConfigMemHelper_config_data.attributes.doors[i].ToggleDoor))) {
+              swap_endian64(confirmedEvent))) {
         _pending_door_pcer[i] = false;
       }
     }

@@ -47,7 +47,17 @@ typedef struct{
     struct {
       char doorName[16];        // description of this Door
       char doorShort[5];        // short description of this Door
-      event_id_t ToggleDoor;       // producer Toggle door position eventID
+      // PAIRED-EVENT EXPERIMENT v2: DoorOpen/DoorClose replace the original
+      // ToggleDoor plus the intermediate DoorOpenConfirmed/DoorClosedConfirmed
+      // pair. Each event is registered as BOTH consumer and producer on this
+      // node (and on Turntable) — a node commands the action by producing the
+      // event, and confirms the resulting state by producing the same event
+      // again once the move completes; each side also consumes it to react/
+      // display. This is the standard OpenLCB command+feedback pattern (the
+      // same one used for turnouts) and needs no separate "confirmed" events:
+      // a directional command is unambiguous on its own, unlike a toggle.
+      event_id_t DoorOpen;    // consumer: command to open — producer: confirmed open
+      event_id_t DoorClose;   // consumer: command to close — producer: confirmed closed
       uint8_t  servo_min;   /* angle + 90; 0=−90°, 90=0°, 180=+90° */
       uint8_t  servo_max;   /* angle + 90 */
     } doors[MAX_DOORS];
@@ -62,7 +72,7 @@ typedef struct{
   
 // modify as desired
 // data not used by CDI 
-  event_status_enum consumer_status[2+MAX_DOORS+4]; // Array to hold the state of each event (on/off/unknown) for the events defined in the configuration
+  event_status_enum consumer_status[2+2*MAX_DOORS+4]; // Array to hold the state of each event (on/off/unknown) for the events defined in the configuration (PAIRED-EVENT EXPERIMENT v2: 2 consumer slots per door)
   event_status_enum producer_status[MAX_DOORS]; // Array to hold the door open/closed state for each door (one entry per door)
   LightAddress Lights[NumOfLights];
   ServoAddress Servos[MAX_DOORS];

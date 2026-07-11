@@ -130,7 +130,11 @@
 #define UNUSED_PIN 127
 
 // Define current version of EEPROM configuration
-#define EEPROM_VERSION 8
+// Bumped 9 → 3-event-to-2-event door scheme (ToggleDoor removed, DoorOpen/
+// DoorClose added; doors[]/consumer_status[]/producer_status[] all changed
+// shape) — forces a reset-to-defaults instead of misreading NVM written
+// under the old struct layout. See LCC_NODE_STANDARD.md §7.
+#define EEPROM_VERSION 9
 
 //  Enable debug outputs if required during troubleshooting.
 #define NODE_DEBUG true  // uncomment for debug
@@ -182,7 +186,7 @@ const uint8_t PixelPin = NeoPixel_PinA;  // pin for the data line
 #define MAX_DOORS 16
 #define NUM_DOORS 10
 
-#define NUM_DOOR_EVENTS 2 + MAX_DOORS  // OpenAll + CloseAll + one ToggleDoor per door
+#define NUM_DOOR_EVENTS 2 + 2*MAX_DOORS  // OpenAll + CloseAll + DoorOpen/DoorClose per door (PAIRED-EVENT EXPERIMENT v2; not referenced elsewhere, documentation only)
 #define NUM_LUM_EVENTS  5              // Interior, Exterior, HighLum, LowLum + spare
 #define NUM_EVENT NUM_DOOR_EVENTS + NUM_LUM_EVENTS
 
