@@ -15,6 +15,25 @@ Claude Code sessions working across the family.
 
 ---
 
+## Safety
+
+This is a hobby project, not a certified product. It has had no FCC or other compliance testing,
+it is not a toy, and it comes with no warranty ([LICENSE](LICENSE)). Build and run it at your own
+risk.
+
+- **Power:** use listed (UL or ETL) supplies, and fuse each supply's output for the wiring it
+  feeds.
+- **LCC bus power:** if the node feeds the bus, follow the bus power rules in the
+  [Node Standard](https://github.com/bocabob/LCC_RPiPico_Common/blob/master/LCC_NODE_STANDARD.md): inject only from a 9–15 V supply that powers nothing else,
+  never from a track, motor or LED supply.
+- **The doors move by themselves**, on LCC events sent from anywhere on the layout, and to
+  their saved positions at power-up. Keep fingers clear of the doors and their linkages while the
+  node is powered.
+- **Servo power:** size the servo supply for every servo moving at once.
+- **Do not leave it running unattended.**
+
+---
+
 ## Features
 
 - **OpenLCB (LCC) node** — full CAN bus integration using the MustangPeak OpenLcbCLib
@@ -205,4 +224,14 @@ Key modules:
 
 ## License
 
-BSD 2-Clause — see [`LICENSE`](LICENSE).
+- **This project's own files** are under the BSD 2-Clause License, in [LICENSE](LICENSE).
+  Until 2026-10-21 the LICENSE file held the GNU GPL-3.0 while this README said BSD 2-Clause;
+  copies taken before then keep the GPL-3.0 as well.
+- **The firmware image as a whole is AGPL-3.0**, because NeoPixelConnect is; the PCA9685 servo
+  library is GPL-3.0. Anyone who passes the image on must offer its complete source
+  (THIRD_PARTY_NOTICES.md says what that covers).
+- **Third-party code:** [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) lists every library in
+  the firmware, vendored or linked at build time, with its license and notices.
+  [licenses/](licenses/) holds the long license texts. Both go with every firmware image.
+- The OpenLCB stack is Jim Kueneman's [OpenLcbCLib](https://github.com/JimKueneman/OpenLcbCLib),
+  BSD-2-Clause.
